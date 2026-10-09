@@ -1,17 +1,6 @@
-name: CI
-
-# Runs on every push to main and on pull requests.
-# Quality gates (lint, type-check) run first and block the test matrix.
+name: 01 · CI
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/ci.yml"
   pull_request:
     branches: [main]
     paths:
@@ -19,54 +8,68 @@ on:
       - "tests/**"
       - "pyproject.toml"
       - "uv.lock"
-      - ".github/workflows/ci.yml"
+      - ".github/workflows/00-install-deps.yml"
+      - ".github/workflows/01-ci.yml"
+  workflow_call:
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  install-deps:
+    uses: ./.github/workflows/00-install-deps.yml
+
   lint:
     name: Lint & Format Check
+    needs: [install-deps]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           enable-cache: true
-      - run: uv sync --frozen --extra dev
-      - run: uv run --frozen ruff check .
-      - run: uv run --frozen ruff format --check .
+      - run: uv sync --frozen --group dev
+      - run: uv run --frozen poe format-check
+      - run: uv run --frozen poe lint
 
   type-check:
     name: Type Check & Import Contracts
+    needs: [install-deps]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           enable-cache: true
-      - run: uv sync --frozen --extra dev
-      - run: uv run --frozen ty check
-      - run: uv run --frozen pyright
-      - run: PYTHONPATH=src uv run --frozen lint-imports
+      - run: uv sync --frozen --group dev
+      - run: uv run --frozen poe typecheck
+      - run: PYTHONPATH=src uv run --frozen poe imports
+
+  security:
+    name: Security
+    needs: [install-deps]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --group dev
+      - run: uv run --frozen poe security
 
   test:
     name: Tests (Python ${{ matrix.python }})
-    needs: [lint, type-check]
+    needs: [lint, type-check, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    permissions:
-      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -77,10 +80,10 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - run: uv sync --frozen --extra dev
-      - run: uv run --frozen pytest
+      - run: uv sync --frozen --group dev
+      - run: uv run --frozen poe test-ci
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: matrix.python == '3.13' && always()
+        if: always()
         with:
           name: coverage-report
           path: |
