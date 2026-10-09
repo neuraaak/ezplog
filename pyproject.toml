@@ -316,9 +316,9 @@ reportInconsistentConstructor = true
 
 [tool.importlinter]
 root_packages = ["ezplog"]
-# Note: import-linter 2.x ne supporte pas source_paths (feature pending PR #323).
-# Le package doit être installé en mode editable (pip install -e .)
-# ou lancer avec PYTHONPATH=src lint-imports
+# Note: import-linter 2.x does not support source_paths (feature pending PR #323).
+# Install the package in editable mode (pip install -e .), or run
+# PYTHONPATH=src lint-imports.
 
 [[tool.importlinter.contracts]]
 name = "layer dependency flow"

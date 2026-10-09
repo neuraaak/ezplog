@@ -360,11 +360,11 @@ class TestSpecialCharacters:
         """Test logger with Unicode characters."""
         logger_handler = EzLogger(temp_log_file, level="INFO")
         logger = logger_handler.get_loguru()
-        strange_message = "Test spécial: éèàçô 漢字 🚀"
+        strange_message = "Special test: éèàçô 漢字 🚀"
         logger.info(strange_message)
         wait_for_file(temp_log_file)
         content = temp_log_file.read_text(encoding="utf-8")
-        assert "Test spécial" in content
+        assert "Special test" in content
         assert "漢字" in content
         assert "🚀" in content
 
