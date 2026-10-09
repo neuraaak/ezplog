@@ -286,7 +286,7 @@ class _LazyPrinter:
             real.reset_indent()
 
     @contextmanager
-    def manage_indent(self) -> Generator[None, None, None]:
+    def manage_indent(self) -> Generator[None]:
         """Context manager for temporary indentation (pass-through if Ezpl not initialized)."""
         real = self._get_real()
         if real is not None:

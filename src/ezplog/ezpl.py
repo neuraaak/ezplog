@@ -590,7 +590,7 @@ class Ezpl:
     # ///////////////////////////////////////////////////////////////
 
     @contextmanager
-    def manage_indent(self) -> Generator[None, None, None]:
+    def manage_indent(self) -> Generator[None]:
         """
         Context manager to manage indentation level.
 

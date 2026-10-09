@@ -4,7 +4,10 @@
 # ///////////////////////////////////////////////////////////////
 
 [build-system]
-requires = ["hatchling"]
+# Hatchling 1.32+ emits Metadata-Version 2.5, which is rejected by the
+# twine bundled in pypa/gh-action-pypi-publish. Keep 1.31.x until that action
+# accepts the newer metadata version.
+requires = ["hatchling>=1.27,<1.32"]
 build-backend = "hatchling.build"
 
 # ///////////////////////////////////////////////////////////////
@@ -50,30 +53,7 @@ dependencies = [
 # Development tools, testing, and build dependencies
 # ///////////////////////////////////////////////////////////////
 
-[project.optional-dependencies]
-dev = [
-    # Development tools
-    "ruff>=0.1.0",
-    "ty>=0.0.13",
-    "pyright>=1.1.0",
-    "pre-commit>=3.0.0",
-    "poethepoet>=0.32",
-    "import-linter>=2.0.0",
-    "grimp>=2.3.0",
-
-    # Security
-    "bandit>=1.7.0",
-
-    # Tests
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-mock>=3.10.0",
-    "pytest-xdist>=3.0.0",
-
-    # Build and distribution
-    "build>=1.0.0",
-    "twine>=4.0.0",
-]
+[dependency-groups]
 test = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -90,6 +70,29 @@ docs = [
     "mike>=2.0.0",
     "pymdown-extensions>=10.7",
     "git-cliff>=2.7.0",
+    "grimp>=2.3.0",
+]
+dev = [
+    # Tests (single source of truth, no duplication)
+    { include-group = "test" },
+
+    # Documentation (single source of truth, no duplication)
+    { include-group = "docs" },
+
+    # Development tools
+    "ruff>=0.1.0",
+    "ty>=0.0.13",
+    "pyright>=1.1.0",
+    "pre-commit>=3.0.0",
+    "poethepoet>=0.32",
+
+    # Security
+    "bandit>=1.7.0",
+    "pip-audit>=2.7.0",
+
+    # Build
+    "build>=1.0.0",
+    "twine>=4.0.0",
 ]
 
 # ///////////////////////////////////////////////////////////////
@@ -122,8 +125,13 @@ lint-fix = "ruff check --fix src tests"
 format = "ruff format src tests"
 format-check = "ruff format --check src tests"
 imports = "lint-imports"
-security = "bandit -c pyproject.toml -r src"
+security = { help = "Run Bandit and audit locked dependencies", sequence = [
+    "bandit -c pyproject.toml -r src",
+    "pip-audit",
+], default_item_type = "cmd" }
+
 test = "pytest"
+test-ci = "pytest --cov-fail-under=70"
 test-unit = "pytest -m unit"
 test-fast = "pytest -n auto -m 'not slow'"
 docs = "mkdocs serve"
@@ -180,7 +188,7 @@ exclude = [
 
 # Ruff: All-in-one linter with comprehensive rule sets
 [tool.ruff]
-target-version = "py311"
+target-version = "py313"
 line-length = 88
 
 [tool.ruff.lint]
@@ -339,7 +347,6 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
-    "--cov-fail-under=70",
     "--tb=short",
     "--color=yes",
     "--durations=10",

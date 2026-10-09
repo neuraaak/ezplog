@@ -722,7 +722,7 @@ class DynamicProgressMixin:
         self,
         stages: list[StageConfig],
         show_time: bool = True,
-    ) -> Generator[DynamicLayeredProgress, None, None]:
+    ) -> Generator[DynamicLayeredProgress]:
         """
         Create a dynamic layered progress bar context manager.
 

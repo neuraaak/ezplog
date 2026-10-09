@@ -412,7 +412,7 @@ class EzPrinter(LoggingHandler, IndentationManager):
         self._indent = 0
 
     @contextmanager
-    def manage_indent(self) -> Generator[None, None, None]:
+    def manage_indent(self) -> Generator[None]:
         """
         Context manager for temporary indentation.
 
