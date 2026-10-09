@@ -89,6 +89,22 @@ Use a local configuration file for stable defaults.
 }
 ```
 
+## 🔑 File logging keys
+
+| Key | Type | Default | Description |
+| :-- | :-- | :-- | :-- |
+| `log-rotation` | `str \| int \| timedelta \| time \| callable` | `None` | When to rotate the log file, e.g. `"10 MB"`, `"1 day"`, `500_000` (bytes), a `datetime.timedelta`, a `datetime.time`, or a callable. |
+| `log-retention` | `str \| int \| timedelta \| callable` | `None` | How long or how many rotated files to keep, e.g. `"7 days"`, `10` (file count), a `datetime.timedelta`, or a callable. |
+| `log-compression` | `str` | `None` | Compression format applied to rotated files, e.g. `"zip"`, `"gz"`, `"tar.gz"`. |
+| `log-backtrace` | `bool` | `true` | Extends tracebacks beyond the point of capture. |
+| `log-diagnose` | `bool` | `false` | Includes local variable values in tracebacks. |
+
+!!! warning "log-diagnose and sensitive data"
+
+    Enabling `log-diagnose` writes the value of local variables to the
+    log file: passwords, tokens, personal data. ezplog disables it by
+    default, unlike loguru. Only enable it for local debugging.
+
 ## ✅ Result
 
 The application owns logging policy, while libraries stay passive and compatible.

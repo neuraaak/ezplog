@@ -135,11 +135,11 @@ class TestInvalidConfiguration:
         with pytest.raises(LoggingError):
             Ezpl(log_file=temp_log_file, log_retention="INVALID_FORMAT")
 
-    def test_should_raise_logging_error_when_compression_format_is_invalid(
+    def test_should_raise_validation_error_when_compression_format_is_invalid(
         self, temp_log_file: Path
     ) -> None:
-        """Loguru validates compression at init — should raise LoggingError."""
-        with pytest.raises(LoggingError):
+        """EzLogger validates compression at construction — should raise ValidationError."""
+        with pytest.raises(ValidationError):
             Ezpl(log_file=temp_log_file, log_compression="INVALID_FORMAT")
 
     def test_should_succeed_when_indent_step_is_negative(self) -> None:

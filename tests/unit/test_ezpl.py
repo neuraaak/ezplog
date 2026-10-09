@@ -90,6 +90,8 @@ class TestInitialization:
             log_rotation="10 MB",
             log_retention="7 days",
             log_compression="zip",
+            log_backtrace=False,
+            log_diagnose=True,
             indent_step=4,
             indent_symbol="  ",
             base_indent_symbol=">",
@@ -98,6 +100,9 @@ class TestInitialization:
         # Verify levels are set correctly
         assert ezpl._printer._level == "INFO"
         assert ezpl._logger._level == "WARNING"
+        # Verify backtrace/diagnose are forwarded to the file logger
+        assert ezpl._logger.backtrace is False
+        assert ezpl._logger.diagnose is True
 
     def test_should_initialize_with_valid_defaults_when_no_parameters_are_given(
         self,
@@ -345,6 +350,28 @@ class TestConfiguration:
         # So log-level in config might be INFO, but printer-level is DEBUG
         assert config.get("printer-level") == "DEBUG"
         assert config.get("log-rotation") == "10 MB"
+
+    def test_should_rebuild_file_sink_when_log_diagnose_is_configured(
+        self,
+    ) -> None:
+        """Test that configure(log_diagnose=...) rebuilds the file sink with the new value."""
+        ezpl = Ezpl()
+        assert ezpl._logger.diagnose is False
+        ezpl.configure(log_diagnose=True)
+        config = ezpl.get_config()
+        assert config.get("log-diagnose") is True
+        assert ezpl._logger.diagnose is True
+
+    def test_should_rebuild_file_sink_when_log_backtrace_is_configured(
+        self,
+    ) -> None:
+        """Test that configure(log_backtrace=...) rebuilds the file sink with the new value."""
+        ezpl = Ezpl()
+        assert ezpl._logger.backtrace is True
+        ezpl.configure(log_backtrace=False)
+        config = ezpl.get_config()
+        assert config.get("log-backtrace") is False
+        assert ezpl._logger.backtrace is False
 
     def test_should_reload_config_from_updated_file_when_reload_config_is_called(
         self,
@@ -640,3 +667,50 @@ class TestConfigLockV2:
 
         assert Ezpl.unlock_config(token) is True
         assert Ezpl.is_locked() is False
+
+
+@pytest.mark.unit
+def test_facade_exposes_new_methods(ezpl_instance):
+    assert hasattr(ezpl_instance, "trace")
+    assert hasattr(ezpl_instance, "exception")
+    assert hasattr(ezpl_instance, "log")
+
+
+@pytest.mark.unit
+def test_facade_delegates_to_printer(ezpl_instance, mocker):
+    printer = mocker.patch.object(ezpl_instance, "_printer")
+
+    ezpl_instance.info("v={}", 1)
+    printer.info.assert_called_once_with("v={}", 1)
+
+    ezpl_instance.trace("t")
+    printer.trace.assert_called_once_with("t")
+
+    ezpl_instance.exception("e")
+    printer.exception.assert_called_once_with("e")
+
+    ezpl_instance.error("boum", exc_info=True)
+    printer.error.assert_called_once_with("boum", exc_info=True)
+
+    ezpl_instance.log("TRACE", "m")
+    printer.log.assert_called_once_with("TRACE", "m")
+
+
+@pytest.mark.unit
+def test_facade_does_not_write_to_file(ezpl_instance, mocker):
+    logger = mocker.patch.object(ezpl_instance, "_logger")
+    ezpl_instance.info("console uniquement")
+    logger.info.assert_not_called()
+
+
+@pytest.mark.unit
+def test_configure_normalizes_traceback_keys(ezpl_instance, mocker):
+    manager = mocker.patch.object(ezpl_instance, "_config_manager")
+    ezpl_instance.configure(log_diagnose=True, log_backtrace=False)
+
+    manager.update.assert_called_once()
+    (applied_config,), _ = manager.update.call_args
+    assert applied_config["log-diagnose"] is True
+    assert applied_config["log-backtrace"] is False
+    assert "log_diagnose" not in applied_config
+    assert "log_backtrace" not in applied_config

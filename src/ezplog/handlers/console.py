@@ -16,6 +16,7 @@ from __future__ import annotations
 # IMPORTS
 # ///////////////////////////////////////////////////////////////
 # Standard library imports
+import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
@@ -142,13 +143,15 @@ class EzPrinter(LoggingHandler, IndentationManager):
         self._level_numeric = LogLevel.get_no(self._level)
         self._level_manually_set = True
 
-    def log(self, level: str, message: Any) -> None:
+    def log(self, level: str, message: Any, *args: Any, **kwargs: Any) -> None:
         """
         Log a message with the specified level.
 
         Args:
             level: The log level
             message: The message to log (any type, will be safely converted to string)
+            *args: Positional arguments for loguru-style `{}` formatting
+            **kwargs: Keyword arguments for loguru-style `{}` formatting
 
         Raises:
             ValidationError: If the level is invalid
@@ -159,6 +162,7 @@ class EzPrinter(LoggingHandler, IndentationManager):
         # Convert message to string robustly
         message = safe_str_convert(message)
         message = sanitize_for_console(message)
+        message = self._apply_format(message, args, kwargs)
 
         try:
             level_numeric = LogLevel.get_no(level)
@@ -167,6 +171,7 @@ class EzPrinter(LoggingHandler, IndentationManager):
 
             # Map log levels to patterns for consistent output
             pattern_map = {
+                "TRACE": Pattern.TRACE,
                 "DEBUG": Pattern.DEBUG,
                 "INFO": Pattern.INFO,
                 "SUCCESS": Pattern.SUCCESS,
@@ -187,32 +192,103 @@ class EzPrinter(LoggingHandler, IndentationManager):
                 raise ValueError(f"Failed to print logging error: {e}") from e
 
     # ///////////////////////////////////////////////////////////////
+    # PRIVATE HELPER METHODS
+    # ///////////////////////////////////////////////////////////////
+
+    @staticmethod
+    def _apply_format(
+        message: str, args: tuple[Any, ...], kwargs: dict[str, Any]
+    ) -> str:
+        """
+        Apply loguru-style `{}` formatting when arguments are supplied.
+
+        Returns the message untouched when no arguments are given, so that
+        literal braces are preserved. Any formatting failure falls back to the
+        raw message: a logging call must never break the caller.
+        """
+        if not args and not kwargs:
+            return message
+        try:
+            return message.format(*args, **kwargs)
+        except (IndexError, KeyError, ValueError):
+            return message
+
+    def _print_traceback_if_active(self) -> None:
+        """
+        Render the active exception traceback, if any.
+
+        `Console.print_exception()` raises when no exception is being handled,
+        so the call is guarded. Local variables are never shown: a traceback
+        may end up in a log file, and locals routinely hold secrets.
+        """
+        if sys.exc_info()[0] is None:
+            return
+        self._console.print_exception(show_locals=False)
+
+    # ///////////////////////////////////////////////////////////////
     # LOGGING METHODS (API primaire)
     # ///////////////////////////////////////////////////////////////
 
-    def info(self, message: Any) -> None:
+    def info(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log an informational message with pattern format."""
+        message = self._apply_format(safe_str_convert(message), args, kwargs)
         self.print_pattern(Pattern.INFO, message, "INFO")
 
-    def debug(self, message: Any) -> None:
+    def trace(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log a trace message with pattern format."""
+        message = self._apply_format(safe_str_convert(message), args, kwargs)
+        self.print_pattern(Pattern.TRACE, message, "TRACE")
+
+    def debug(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a debug message with pattern format."""
+        message = self._apply_format(safe_str_convert(message), args, kwargs)
         self.print_pattern(Pattern.DEBUG, message, "DEBUG")
 
-    def success(self, message: Any) -> None:
+    def success(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a success message with pattern format."""
+        message = self._apply_format(safe_str_convert(message), args, kwargs)
         self.print_pattern(Pattern.SUCCESS, message, "INFO")
 
-    def warning(self, message: Any) -> None:
+    def warning(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a warning message with pattern format."""
+        message = self._apply_format(safe_str_convert(message), args, kwargs)
         self.print_pattern(Pattern.WARN, message, "WARNING")
 
-    def error(self, message: Any) -> None:
-        """Log an error message with pattern format."""
-        self.print_pattern(Pattern.ERROR, message, "ERROR")
+    def error(
+        self, message: Any, *args: Any, exc_info: bool = False, **kwargs: Any
+    ) -> None:
+        """Log an error message with pattern format.
 
-    def critical(self, message: Any) -> None:
-        """Log a critical message with pattern format."""
+        Args:
+            message: Message to display.
+            *args: Positional arguments for `{}` formatting.
+            exc_info: If True, also render the active exception traceback.
+            **kwargs: Keyword arguments for `{}` formatting.
+        """
+        message = self._apply_format(safe_str_convert(message), args, kwargs)
+        self.print_pattern(Pattern.ERROR, message, "ERROR")
+        if exc_info:
+            self._print_traceback_if_active()
+
+    def critical(
+        self, message: Any, *args: Any, exc_info: bool = False, **kwargs: Any
+    ) -> None:
+        """Log a critical message with pattern format.
+
+        Args:
+            message: Message to display.
+            *args: Positional arguments for `{}` formatting.
+            exc_info: If True, also render the active exception traceback.
+            **kwargs: Keyword arguments for `{}` formatting.
+        """
+        message = self._apply_format(safe_str_convert(message), args, kwargs)
         self.print_pattern(Pattern.ERROR, message, "CRITICAL")
+        if exc_info:
+            self._print_traceback_if_active()
+
+    def exception(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log an error message followed by the active exception traceback."""
+        self.error(message, *args, exc_info=True, **kwargs)
 
     # ------------------------------------------------
     # ADDITIONAL PATTERN METHODS
@@ -336,7 +412,7 @@ class EzPrinter(LoggingHandler, IndentationManager):
         self._indent = 0
 
     @contextmanager
-    def manage_indent(self) -> Generator[None, None, None]:
+    def manage_indent(self) -> Generator[None]:
         """
         Context manager for temporary indentation.
 

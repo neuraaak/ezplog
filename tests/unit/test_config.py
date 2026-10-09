@@ -437,3 +437,21 @@ class TestErrorHandling:
         with pytest.warns(UserWarning, match="Could not load config file"):
             config = ConfigurationManager(config_file=temp_config_file)
         assert config is not None
+
+
+@pytest.mark.unit
+def test_defaults_expose_traceback_keys():
+    from ezplog.config._defaults import DefaultConfiguration
+
+    defaults = DefaultConfiguration.get_all_defaults()
+    assert defaults["log-backtrace"] is True
+    assert defaults["log-diagnose"] is False
+
+
+@pytest.mark.unit
+def test_file_logger_defaults_expose_traceback_keys():
+    from ezplog.config._defaults import DefaultConfiguration
+
+    defaults = DefaultConfiguration.get_file_logger_defaults()
+    assert "log-backtrace" in defaults
+    assert "log-diagnose" in defaults

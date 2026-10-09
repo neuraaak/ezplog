@@ -23,6 +23,9 @@ from __future__ import annotations
 import inspect
 from contextlib import AbstractContextManager
 
+# Third-party imports
+import pytest
+
 # Local imports
 from ezplog import Ezpl
 from ezplog.handlers.file import EzLogger
@@ -281,6 +284,54 @@ class TestProtocolInheritance:
 
         for method in required_methods:
             assert hasattr(logger, method), f"Missing method: {method}"
+
+
+@pytest.mark.unit
+def test_ez_printer_satisfies_printer_protocol():
+    from ezplog.handlers.console import EzPrinter
+    from ezplog.types import PrinterProtocol
+
+    printer: PrinterProtocol = EzPrinter(level="DEBUG")
+    assert isinstance(printer, PrinterProtocol)
+
+
+@pytest.mark.unit
+def test_lazy_printer_exposes_new_methods():
+    from ezplog.lib_mode import _LazyPrinter
+
+    proxy = _LazyPrinter()
+    assert hasattr(proxy, "trace")
+    assert hasattr(proxy, "exception")
+
+
+@pytest.mark.unit
+def test_lazy_printer_forwards_args_and_exc_info(mocker):
+    from ezplog.lib_mode import _LazyPrinter
+
+    proxy = _LazyPrinter()
+    real = mocker.Mock()
+    mocker.patch.object(_LazyPrinter, "_get_real", return_value=real)
+
+    proxy.info("v={}", 1)
+    real.info.assert_called_once_with("v={}", 1)
+
+    proxy.error("boum", exc_info=True)
+    real.error.assert_called_once_with("boum", exc_info=True)
+
+    proxy.trace("t")
+    real.trace.assert_called_once_with("t")
+
+    proxy.exception("e")
+    real.exception.assert_called_once_with("e")
+
+
+@pytest.mark.unit
+def test_lazy_printer_new_methods_are_silent_when_uninitialized():
+    from ezplog.lib_mode import _LazyPrinter
+
+    proxy = _LazyPrinter()
+    proxy.trace("silencieux")
+    proxy.exception("silencieux")
 
 
 class TestStrictSignatureAlignment:

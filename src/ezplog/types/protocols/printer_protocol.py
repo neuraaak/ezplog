@@ -51,28 +51,40 @@ class PrinterProtocol(Protocol):
     # CORE LOGGING METHODS
     # ///////////////////////////////////////////////////////////////
 
-    def info(self, message: Any) -> None:
-        """Log an info message."""
+    def trace(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log a trace message."""
         ...
 
-    def debug(self, message: Any) -> None:
+    def info(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log an informational message."""
+        ...
+
+    def debug(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a debug message."""
         ...
 
-    def success(self, message: Any) -> None:
+    def success(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a success message."""
         ...
 
-    def warning(self, message: Any) -> None:
+    def warning(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a warning message."""
         ...
 
-    def error(self, message: Any) -> None:
-        """Log an error message."""
+    def error(
+        self, message: Any, *args: Any, exc_info: bool = False, **kwargs: Any
+    ) -> None:
+        """Log an error message, optionally with the active traceback."""
         ...
 
-    def critical(self, message: Any) -> None:
-        """Log a critical message."""
+    def critical(
+        self, message: Any, *args: Any, exc_info: bool = False, **kwargs: Any
+    ) -> None:
+        """Log a critical message, optionally with the active traceback."""
+        ...
+
+    def exception(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log an error message followed by the active exception traceback."""
         ...
 
     # ///////////////////////////////////////////////////////////////
@@ -136,8 +148,8 @@ class PrinterProtocol(Protocol):
         """Set the logging level."""
         ...
 
-    def log(self, level: str, message: Any) -> None:
-        """Log a message with specified level."""
+    def log(self, level: str, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log a message at the given level."""
         ...
 
     # ///////////////////////////////////////////////////////////////

@@ -43,7 +43,7 @@ from ezplog.config import ConfigurationManager
 
 
 @pytest.fixture(autouse=True)
-def reset_ezpl() -> Generator[None, None, None]:
+def reset_ezpl() -> Generator[None]:
     """
     Automatically reset Ezpl singleton before and after each test.
 
@@ -59,7 +59,7 @@ def reset_ezpl() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def temp_dir() -> Generator[Path, None, None]:
+def temp_dir() -> Generator[Path]:
     """
     Create a temporary directory for test files.
 
@@ -120,7 +120,7 @@ def mock_console() -> Mock:
 
 
 @pytest.fixture
-def ezpl_instance(temp_log_file: Path) -> Generator[Ezpl, None, None]:
+def ezpl_instance(temp_log_file: Path) -> Generator[Ezpl]:
     """
     Create a fresh Ezpl instance with temporary log file.
 
@@ -153,7 +153,7 @@ def config_manager(temp_config_file: Path) -> ConfigurationManager:
 
 
 @pytest.fixture
-def clean_env() -> Generator[None, None, None]:
+def clean_env() -> Generator[None]:
     """
     Clean environment variables before and after test.
 

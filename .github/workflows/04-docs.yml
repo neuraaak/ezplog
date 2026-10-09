@@ -1,0 +1,91 @@
+name: 04 · Deploy Documentation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/04-docs.yml"
+  workflow_dispatch:
+    inputs:
+      tag_action:
+        description: "create = release docs | skip = dev docs | preview = build only"
+        required: true
+        type: choice
+        default: preview
+        options: [preview, skip, create]
+  workflow_call:
+    inputs:
+      version:
+        required: false
+        type: string
+      tag_action:
+        required: false
+        type: string
+        default: preview
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Build and Deploy Docs
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --group dev
+      - run: uv run --frozen pytest --cov=src/ezplog --cov-report=html --cov-report=xml -q
+      - run: PYTHONPATH=src uv run --frozen lint-imports
+      - name: Generate architecture graph
+        run: |
+          if [ -f .scripts/dev/generate_architecture_graph.py ]; then
+            uv run --frozen poe graph
+          fi
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
+        with:
+          config: cliff.toml
+          args: --output docs/changelog.md
+      - name: Resolve docs version
+        id: docs_version
+        env:
+          INPUT_VERSION: ${{ inputs.version || '' }}
+        run: |
+          VERSION="$INPUT_VERSION"
+          if [ -z "$VERSION" ]; then VERSION=$(grep -E '^version\s*=\s*"' pyproject.toml | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/'); fi
+          test -n "$VERSION" || { echo "::error::No version found in pyproject.toml"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Configure git for mike
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Deploy release docs
+        if: inputs.tag_action == 'create'
+        env:
+          DOCS_VERSION: ${{ steps.docs_version.outputs.version }}
+        run: |
+          uv run --frozen mike deploy --push --update-aliases "$DOCS_VERSION" latest
+          uv run --frozen mike set-default --push latest
+      - name: Deploy dev docs
+        if: inputs.tag_action == 'skip'
+        run: uv run --frozen mike deploy --push --update-aliases dev
+      - name: Validate docs build
+        if: inputs.tag_action == 'preview'
+        env:
+          DOCS_VERSION: ${{ steps.docs_version.outputs.version }}
+        run: uv run --frozen mike deploy --update-aliases "$DOCS_VERSION" latest

@@ -100,6 +100,8 @@ class Ezpl:
         log_rotation: str | None = None,
         log_retention: str | None = None,
         log_compression: str | None = None,
+        log_backtrace: bool | None = None,
+        log_diagnose: bool | None = None,
         indent_step: int | None = None,
         indent_symbol: str | None = None,
         base_indent_symbol: str | None = None,
@@ -130,6 +132,8 @@ class Ezpl:
             * `log_rotation` (str, optional): Rotation setting (e.g., "10 MB", "1 day")
             * `log_retention` (str, optional): Retention period (e.g., "7 days")
             * `log_compression` (str, optional): Compression format (e.g., "zip", "gz")
+            * `log_backtrace` (bool, optional): Extend tracebacks beyond the catching point
+            * `log_diagnose` (bool, optional): Include local variable values in tracebacks
             * `indent_step` (int, optional): Indentation step size
             * `indent_symbol` (str, optional): Symbol for indentation
             * `base_indent_symbol` (str, optional): Base indentation symbol
@@ -236,6 +240,16 @@ class Ezpl:
                         if log_compression is not None
                         else cls._config_manager.get_log_compression()
                     )
+                    final_backtrace = (
+                        log_backtrace
+                        if log_backtrace is not None
+                        else cls._config_manager.get_log_backtrace()
+                    )
+                    final_diagnose = (
+                        log_diagnose
+                        if log_diagnose is not None
+                        else cls._config_manager.get_log_diagnose()
+                    )
 
                     # Indent settings
                     final_indent_step = get_config_value(
@@ -270,6 +284,8 @@ class Ezpl:
                         rotation=final_rotation,
                         retention=final_retention,
                         compression=final_compression,
+                        backtrace=final_backtrace,
+                        diagnose=final_diagnose,
                     )
 
                     # Apply global log level with priority: specific > global
@@ -354,6 +370,8 @@ class Ezpl:
             rotation=self._config_manager.get_log_rotation(),
             retention=self._config_manager.get_log_retention(),
             compression=self._config_manager.get_log_compression(),
+            backtrace=self._config_manager.get_log_backtrace(),
+            diagnose=self._config_manager.get_log_diagnose(),
         )
 
     def _rebuild_printer(
@@ -495,29 +513,67 @@ class Ezpl:
     # FACADE METHODS
     # ///////////////////////////////////////////////////////////////
 
-    def debug(self, message: Any) -> None:
+    def trace(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log a trace message to the console printer."""
+        self._printer.trace(message, *args, **kwargs)
+
+    def debug(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a debug message to the console printer."""
-        self._printer.debug(message)
+        self._printer.debug(message, *args, **kwargs)
 
-    def info(self, message: Any) -> None:
+    def info(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log an info message to the console printer."""
-        self._printer.info(message)
+        self._printer.info(message, *args, **kwargs)
 
-    def success(self, message: Any) -> None:
+    def success(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a success message to the console printer."""
-        self._printer.success(message)
+        self._printer.success(message, *args, **kwargs)
 
-    def warning(self, message: Any) -> None:
+    def warning(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a warning message to the console printer."""
-        self._printer.warning(message)
+        self._printer.warning(message, *args, **kwargs)
 
-    def error(self, message: Any) -> None:
-        """Log an error message to the console printer."""
-        self._printer.error(message)
+    def error(
+        self, message: Any, *args: Any, exc_info: bool = False, **kwargs: Any
+    ) -> None:
+        """Log an error message to the console printer.
 
-    def critical(self, message: Any) -> None:
-        """Log a critical message to the console printer."""
-        self._printer.critical(message)
+        Args:
+            message: Message to display.
+            *args: Positional arguments for `{}` formatting.
+            exc_info: If True, also render the active exception traceback.
+            **kwargs: Keyword arguments for `{}` formatting.
+        """
+        self._printer.error(message, *args, exc_info=exc_info, **kwargs)
+
+    def critical(
+        self, message: Any, *args: Any, exc_info: bool = False, **kwargs: Any
+    ) -> None:
+        """Log a critical message to the console printer.
+
+        Args:
+            message: Message to display.
+            *args: Positional arguments for `{}` formatting.
+            exc_info: If True, also render the active exception traceback.
+            **kwargs: Keyword arguments for `{}` formatting.
+        """
+        self._printer.critical(message, *args, exc_info=exc_info, **kwargs)
+
+    def exception(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log an error message with the active exception traceback (console)."""
+        self._printer.exception(message, *args, **kwargs)
+
+    def log(self, level: str, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log a message at the given level to the console printer.
+
+        Args:
+            level: Log level name (TRACE, DEBUG, INFO, SUCCESS, WARNING,
+                ERROR, CRITICAL).
+            message: Message to display.
+            *args: Positional arguments for `{}` formatting.
+            **kwargs: Keyword arguments for `{}` formatting.
+        """
+        self._printer.log(level, message, *args, **kwargs)
 
     # ///////////////////////////////////////////////////////////////
 
@@ -534,7 +590,7 @@ class Ezpl:
     # ///////////////////////////////////////////////////////////////
 
     @contextmanager
-    def manage_indent(self) -> Generator[None, None, None]:
+    def manage_indent(self) -> Generator[None]:
         """
         Context manager to manage indentation level.
 
@@ -972,6 +1028,16 @@ class Ezpl:
                 if hasattr(self, "_logger") and self._logger
                 else self._config_manager.get_log_compression()
             )
+            current_backtrace = (
+                self._logger.backtrace
+                if hasattr(self, "_logger") and self._logger
+                else self._config_manager.get_log_backtrace()
+            )
+            current_diagnose = (
+                self._logger.diagnose
+                if hasattr(self, "_logger") and self._logger
+                else self._config_manager.get_log_diagnose()
+            )
 
             # Merge kwargs with default values
             init_params = {
@@ -980,6 +1046,8 @@ class Ezpl:
                 "rotation": init_kwargs.pop("rotation", current_rotation),
                 "retention": init_kwargs.pop("retention", current_retention),
                 "compression": init_kwargs.pop("compression", current_compression),
+                "backtrace": init_kwargs.pop("backtrace", current_backtrace),
+                "diagnose": init_kwargs.pop("diagnose", current_diagnose),
             }
             init_params.update(init_kwargs)
 
@@ -1088,6 +1156,11 @@ class Ezpl:
                 - log_rotation or log-rotation: Rotation setting (e.g., "10 MB", "1 day")
                 - log_retention or log-retention: Retention period (e.g., "7 days")
                 - log_compression or log-compression: Compression format (e.g., "zip", "gz")
+                - log_backtrace or log-backtrace: Extend tracebacks beyond the
+                  catching point (default True)
+                - log_diagnose or log-diagnose: Include local variable values in
+                  tracebacks (default False — enabling this may leak secrets
+                  into the log file)
                 - indent_step or indent-step: Indentation step size
                 - indent_symbol or indent-symbol: Symbol for indentation
                 - base_indent_symbol or base-indent-symbol: Base indentation symbol
@@ -1119,6 +1192,8 @@ class Ezpl:
             "log_rotation": "log-rotation",
             "log_retention": "log-retention",
             "log_compression": "log-compression",
+            "log_backtrace": "log-backtrace",
+            "log_diagnose": "log-diagnose",
             "indent_step": "indent-step",
             "indent_symbol": "indent-symbol",
             "base_indent_symbol": "base-indent-symbol",
@@ -1151,7 +1226,13 @@ class Ezpl:
         # Reinitialize logger if rotation settings changed
         rotation_changed = any(
             key in normalized_config
-            for key in ["log-rotation", "log-retention", "log-compression"]
+            for key in [
+                "log-rotation",
+                "log-retention",
+                "log-compression",
+                "log-backtrace",
+                "log-diagnose",
+            ]
         )
         if rotation_changed:
             self._rebuild_logger()

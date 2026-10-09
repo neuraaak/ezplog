@@ -21,8 +21,12 @@ from __future__ import annotations
 # ///////////////////////////////////////////////////////////////
 # IMPORTS
 # ///////////////////////////////////////////////////////////////
+# Third-party imports
+import pytest
+
 # Local imports
 from ezplog import Ezpl
+from ezplog.handlers.console import EzPrinter
 from ezplog.types import Pattern
 
 # ///////////////////////////////////////////////////////////////
@@ -453,3 +457,104 @@ class TestTypeConversion:
 
         printer.info(CustomObject())
         # Verify no exception raised
+
+
+@pytest.mark.unit
+def test_apply_format_positional(capsys):
+    printer = EzPrinter(level="DEBUG")
+    printer.info("valeur={}", 42)
+    assert "valeur=42" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_apply_format_keyword(capsys):
+    printer = EzPrinter(level="DEBUG")
+    printer.info("user={user}", user="alice")
+    assert "user=alice" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_apply_format_without_args_is_literal(capsys):
+    printer = EzPrinter(level="DEBUG")
+    printer.info("accolades {litterales} conservees")
+    assert "{litterales}" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_apply_format_malformed_falls_back_to_raw(capsys):
+    printer = EzPrinter(level="DEBUG")
+    printer.info("accolade non fermee {", 1)
+    assert "accolade non fermee {" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_apply_format_missing_key_falls_back_to_raw(capsys):
+    printer = EzPrinter(level="DEBUG")
+    printer.info("valeur={absente}", autre=1)
+    assert "{absente}" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_log_accepts_trace_level(capsys):
+    printer = EzPrinter(level="TRACE")
+    printer.log("TRACE", "message de trace")
+    assert "message de trace" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_trace_is_displayed_at_trace_level(capsys):
+    printer = EzPrinter(level="TRACE")
+    printer.trace("message de trace")
+    assert "message de trace" in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_trace_is_filtered_at_info_level(capsys):
+    printer = EzPrinter(level="INFO")
+    printer.trace("message de trace")
+    assert "message de trace" not in capsys.readouterr().out
+
+
+@pytest.mark.unit
+def test_exception_renders_traceback_inside_except(capsys):
+    printer = EzPrinter(level="DEBUG")
+    try:
+        raise ValueError("boum")
+    except ValueError:
+        printer.exception("echec du traitement")
+    out = capsys.readouterr().out
+    assert "echec du traitement" in out
+    assert "ValueError" in out
+
+
+@pytest.mark.unit
+def test_exception_outside_except_does_not_raise(capsys):
+    printer = EzPrinter(level="DEBUG")
+    printer.exception("pas d'exception active")
+    out = capsys.readouterr().out
+    assert "pas d'exception active" in out
+    assert "Traceback" not in out
+
+
+@pytest.mark.unit
+def test_error_with_exc_info_renders_traceback(capsys):
+    printer = EzPrinter(level="DEBUG")
+    try:
+        raise KeyError("absente")
+    except KeyError:
+        printer.error("cle manquante", exc_info=True)
+    out = capsys.readouterr().out
+    assert "cle manquante" in out
+    assert "KeyError" in out
+
+
+@pytest.mark.unit
+def test_error_without_exc_info_has_no_traceback(capsys):
+    printer = EzPrinter(level="DEBUG")
+    try:
+        raise KeyError("absente")
+    except KeyError:
+        printer.error("cle manquante")
+    out = capsys.readouterr().out
+    assert "cle manquante" in out
+    assert "KeyError" not in out

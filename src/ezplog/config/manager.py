@@ -264,6 +264,14 @@ class ConfigurationManager:
             self.get("log-compression", DefaultConfiguration.LOG_COMPRESSION),
         )
 
+    def get_log_backtrace(self) -> bool:
+        """Get the current log backtrace setting."""
+        return cast(bool, self.get("log-backtrace", DefaultConfiguration.LOG_BACKTRACE))
+
+    def get_log_diagnose(self) -> bool:
+        """Get the current log diagnose setting."""
+        return cast(bool, self.get("log-diagnose", DefaultConfiguration.LOG_DIAGNOSE))
+
     def get_all(self) -> dict[str, Any]:
         """
         Get all configuration values.

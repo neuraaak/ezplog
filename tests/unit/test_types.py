@@ -138,7 +138,8 @@ class TestLogLevel:
         """Test get_all_levels() class method."""
         levels = LogLevel.get_all_levels()
         assert isinstance(levels, list)
-        assert len(levels) == 6
+        assert len(levels) == 7
+        assert "TRACE" in levels
         assert "DEBUG" in levels
         assert "INFO" in levels
         assert "SUCCESS" in levels
@@ -319,3 +320,44 @@ class TestValidation:
         """Test accessing pattern with invalid name."""
         with pytest.raises(KeyError):
             _ = Pattern["INVALID_PATTERN"]
+
+
+@pytest.mark.unit
+def test_log_level_trace_exists():
+    assert LogLevel.TRACE.label == "TRACE"
+    assert LogLevel.TRACE.no == 5
+
+
+@pytest.mark.unit
+def test_log_level_trace_is_valid():
+    assert LogLevel.is_valid_level("TRACE") is True
+    assert LogLevel.is_valid_level("trace") is True
+
+
+@pytest.mark.unit
+def test_log_level_trace_in_all_levels():
+    assert "TRACE" in LogLevel.get_all_levels()
+
+
+@pytest.mark.unit
+def test_log_level_trace_is_lowest():
+    assert LogLevel.get_no("TRACE") < LogLevel.get_no("DEBUG")
+
+
+@pytest.mark.unit
+def test_pattern_trace_exists():
+    assert Pattern.TRACE.value == "TRACE"
+
+
+@pytest.mark.unit
+def test_pattern_trace_has_color():
+    assert PATTERN_COLORS[Pattern.TRACE] == "dim cyan"
+
+
+@pytest.mark.unit
+def test_supported_compressions_exported():
+    from ezplog.types import SUPPORTED_COMPRESSIONS
+
+    assert "zip" in SUPPORTED_COMPRESSIONS
+    assert "tar.gz" in SUPPORTED_COMPRESSIONS
+    assert "zpi" not in SUPPORTED_COMPRESSIONS

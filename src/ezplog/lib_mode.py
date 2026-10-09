@@ -78,6 +78,11 @@ class _LazyPrinter:
 
     The proxy holds a _LazyWizard so that printer.wizard.xxx() calls also
     resolve correctly.
+
+    Unlike `_LazyWizard`, this proxy declares its log methods explicitly
+    rather than relying on `__getattr__` — any new EzPrinter log method must
+    be added here by hand, or its arguments would be silently dropped in
+    lib mode.
     """
 
     def __init__(self) -> None:
@@ -125,47 +130,63 @@ class _LazyPrinter:
 
     # --- Core log methods ---
 
-    def log(self, level: str, message: Any) -> None:
+    def log(self, level: str, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a message at the given level (no-op if Ezpl not initialized)."""
         real = self._get_real()
         if real is not None:
-            real.log(level, message)
+            real.log(level, message, *args, **kwargs)
 
-    def info(self, message: Any) -> None:
+    def trace(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log a trace message (no-op if Ezpl not initialized)."""
+        real = self._get_real()
+        if real is not None:
+            real.trace(message, *args, **kwargs)
+
+    def info(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log an info message (no-op if Ezpl not initialized)."""
         real = self._get_real()
         if real is not None:
-            real.info(message)
+            real.info(message, *args, **kwargs)
 
-    def debug(self, message: Any) -> None:
+    def debug(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a debug message (no-op if Ezpl not initialized)."""
         real = self._get_real()
         if real is not None:
-            real.debug(message)
+            real.debug(message, *args, **kwargs)
 
-    def success(self, message: Any) -> None:
+    def success(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a success message (no-op if Ezpl not initialized)."""
         real = self._get_real()
         if real is not None:
-            real.success(message)
+            real.success(message, *args, **kwargs)
 
-    def warning(self, message: Any) -> None:
+    def warning(self, message: Any, *args: Any, **kwargs: Any) -> None:
         """Log a warning message (no-op if Ezpl not initialized)."""
         real = self._get_real()
         if real is not None:
-            real.warning(message)
+            real.warning(message, *args, **kwargs)
 
-    def error(self, message: Any) -> None:
+    def error(
+        self, message: Any, *args: Any, exc_info: bool = False, **kwargs: Any
+    ) -> None:
         """Log an error message (no-op if Ezpl not initialized)."""
         real = self._get_real()
         if real is not None:
-            real.error(message)
+            real.error(message, *args, exc_info=exc_info, **kwargs)
 
-    def critical(self, message: Any) -> None:
+    def critical(
+        self, message: Any, *args: Any, exc_info: bool = False, **kwargs: Any
+    ) -> None:
         """Log a critical message (no-op if Ezpl not initialized)."""
         real = self._get_real()
         if real is not None:
-            real.critical(message)
+            real.critical(message, *args, exc_info=exc_info, **kwargs)
+
+    def exception(self, message: Any, *args: Any, **kwargs: Any) -> None:
+        """Log an exception with traceback (no-op if Ezpl not initialized)."""
+        real = self._get_real()
+        if real is not None:
+            real.exception(message, *args, **kwargs)
 
     # --- Pattern methods ---
 
@@ -265,7 +286,7 @@ class _LazyPrinter:
             real.reset_indent()
 
     @contextmanager
-    def manage_indent(self) -> Generator[None, None, None]:
+    def manage_indent(self) -> Generator[None]:
         """Context manager for temporary indentation (pass-through if Ezpl not initialized)."""
         real = self._get_real()
         if real is not None:

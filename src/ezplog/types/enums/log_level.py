@@ -38,7 +38,8 @@ class LogLevel(Enum):
         * `bg`: Background color code
 
     **Levels:**
-        * `DEBUG`: Debugging messages (lowest priority)
+        * `TRACE`: Fine-grained tracing messages (lowest priority)
+        * `DEBUG`: Debugging messages (verbose debugging)
         * `INFO`: Informational messages
         * `SUCCESS`: Success messages
         * `WARNING`: Warning messages
@@ -47,6 +48,7 @@ class LogLevel(Enum):
     """
 
     # Numeric levels match loguru standard levels (stable constants, no runtime lookup)
+    TRACE = ("TRACE", 5, "e", "K")  # cyan / black
     DEBUG = ("DEBUG", 10, "e", "K")  # cyan / black
     INFO = ("INFO", 20, "w", "K")  # white / black
     SUCCESS = ("SUCCESS", 25, "w", "G")  # white / green

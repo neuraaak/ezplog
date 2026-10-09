@@ -1,10 +1,10 @@
 # ///////////////////////////////////////////////////////////////
-# EZPL - Test rapide interactif
+# EZPL - Interactive quick test
 # Project: ezpl
 # ///////////////////////////////////////////////////////////////
 
 """
-Script interactif pour tester rapidement les fonctionnalités d'Ezpl.
+Interactive script for quickly testing Ezpl features.
 
 Usage:
     python examples/quick_test.py
@@ -20,7 +20,7 @@ import sys
 import time
 from pathlib import Path
 
-# Ajouter le répertoire parent au path pour importer ezpl
+# Add the parent directory to the path to import ezpl.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Local imports
@@ -32,9 +32,9 @@ from ezpl import Ezpl
 
 
 def main():
-    """Fonction principale pour les tests interactifs."""
+    """Main entry point for interactive tests."""
 
-    # Initialiser Ezpl
+    # Initialize Ezpl.
     log_file = Path("quick_test.log")
     ezpl = Ezpl(log_file=log_file, log_level="DEBUG")
     printer = ezpl.get_printer()
@@ -42,24 +42,24 @@ def main():
     wizard = printer.wizard
 
     print("\n" + "=" * 80)
-    print("EZPL - TEST RAPIDE INTERACTIF")
+    print("EZPL - INTERACTIVE QUICK TEST")
     print("=" * 80)
 
     # Menu
     while True:
-        print("\nOptions disponibles:")
-        print("1. Tester les niveaux de log")
-        print("2. Tester les patterns")
-        print("3. Tester les panels")
-        print("4. Tester les tables")
-        print("5. Tester le JSON")
-        print("6. Tester les progress bars")
-        print("7. Tester l'indentation")
-        print("8. Tester le logging fichier")
-        print("9. Afficher la configuration")
-        print("0. Quitter")
+        print("\nAvailable options:")
+        print("1. Test log levels")
+        print("2. Test patterns")
+        print("3. Test panels")
+        print("4. Test tables")
+        print("5. Test JSON")
+        print("6. Test progress bars")
+        print("7. Test indentation")
+        print("8. Test file logging")
+        print("9. Show configuration")
+        print("0. Quit")
 
-        choice = input("\nVotre choix: ").strip()
+        choice = input("\nYour choice: ").strip()
 
         if choice == "0":
             break
@@ -82,15 +82,15 @@ def main():
         elif choice == "9":
             show_config(ezpl)
         else:
-            print("Choix invalide!")
+            print("Invalid choice!")
 
-    print("\n✅ Tests terminés!")
-    print(f"Consultez le fichier de log: {log_file}")
+    print("\n✅ Tests completed!")
+    print(f"See the log file: {log_file}")
 
 
 def test_log_levels(printer):
-    """Tester les niveaux de log."""
-    print("\n--- Test des niveaux de log ---")
+    """Test log levels."""
+    print("\n--- Log level test ---")
     printer.debug("Message DEBUG")
     printer.info("Message INFO")
     printer.success("Message SUCCESS")
@@ -100,76 +100,76 @@ def test_log_levels(printer):
 
 
 def test_patterns(printer):
-    """Tester les patterns."""
-    print("\n--- Test des patterns ---")
-    printer.tip("Astuce: Utilisez les type hints")
-    printer.system("Message système")
-    printer.install("Installation en cours")
-    printer.detect("Détection effectuée")
-    printer.config("Configuration chargée")
-    printer.deps("Dépendances vérifiées")
+    """Test patterns."""
+    print("\n--- Pattern test ---")
+    printer.tip("Tip: use type hints")
+    printer.system("System message")
+    printer.install("Installation in progress")
+    printer.detect("Detection completed")
+    printer.config("Configuration loaded")
+    printer.deps("Dependencies verified")
 
 
 def test_panels(wizard):
-    """Tester les panels."""
-    print("\n--- Test des panels ---")
-    wizard.info_panel("Info", "Message d'information")
-    wizard.success_panel("Succès", "Opération réussie")
-    wizard.error_panel("Erreur", "Une erreur s'est produite")
-    wizard.warning_panel("Avertissement", "Attention requise")
+    """Test panels."""
+    print("\n--- Panel test ---")
+    wizard.info_panel("Info", "Information message")
+    wizard.success_panel("Success", "Operation completed successfully")
+    wizard.error_panel("Error", "An error occurred")
+    wizard.warning_panel("Warning", "Attention required")
 
 
 def test_tables(wizard):
-    """Tester les tables."""
-    print("\n--- Test des tables ---")
+    """Test tables."""
+    print("\n--- Table test ---")
     data = [
-        {"Nom": "Alice", "Âge": 30},
-        {"Nom": "Bob", "Âge": 25},
+        {"Name": "Alice", "Age": 30},
+        {"Name": "Bob", "Age": 25},
     ]
-    wizard.table(data, title="Utilisateurs")
+    wizard.table(data, title="Users")
 
 
 def test_json(wizard):
-    """Tester le JSON."""
-    print("\n--- Test du JSON ---")
+    """Test JSON."""
+    print("\n--- JSON test ---")
     data = {"app": "ezpl", "version": "1.0.0", "features": ["logging", "rich"]}
     wizard.json(data, title="Configuration")
 
 
 def test_progress_bars(wizard):
-    """Tester les progress bars."""
-    print("\n--- Test des progress bars ---")
-    with wizard.progress("Traitement...", total=50) as (progress, task):
+    """Test progress bars."""
+    print("\n--- Progress bar test ---")
+    with wizard.progress("Processing...", total=50) as (progress, task):
         for _i in range(50):
             progress.update(task, advance=1)
             time.sleep(0.02)
 
 
 def test_indentation(ezpl, printer):
-    """Tester l'indentation."""
-    print("\n--- Test de l'indentation ---")
-    printer.info("Niveau 0")
+    """Test indentation."""
+    print("\n--- Indentation test ---")
+    printer.info("Level 0")
     with ezpl.manage_indent():
-        printer.info("Niveau 1")
+        printer.info("Level 1")
         with ezpl.manage_indent():
-            printer.info("Niveau 2")
-        printer.info("Retour niveau 1")
-    printer.info("Retour niveau 0")
+            printer.info("Level 2")
+        printer.info("Back to level 1")
+    printer.info("Back to level 0")
 
 
 def test_file_logging(logger, ezpl):
-    """Tester le logging fichier."""
-    print("\n--- Test du logging fichier ---")
-    logger.info("Message INFO dans le fichier")
-    logger.debug("Message DEBUG dans le fichier")
-    logger.warning("Message WARNING dans le fichier")
-    logger.error("Message ERROR dans le fichier")
-    print(f"Fichier de log: {ezpl.get_log_file()}")
+    """Test file logging."""
+    print("\n--- File logging test ---")
+    logger.info("INFO message in file")
+    logger.debug("DEBUG message in file")
+    logger.warning("WARNING message in file")
+    logger.error("ERROR message in file")
+    print(f"Log file: {ezpl.get_log_file()}")
 
 
 def show_config(ezpl):
-    """Afficher la configuration."""
-    print("\n--- Configuration actuelle ---")
+    """Show the current configuration."""
+    print("\n--- Current configuration ---")
     config = ezpl.get_config()
     print(f"Log level: {config.get('log-level')}")
     print(f"Printer level: {config.get('printer-level')}")

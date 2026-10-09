@@ -88,8 +88,14 @@ class DefaultConfiguration:
 
     # Rotation settings (optional - None means no rotation)
     LOG_ROTATION = None  # e.g., "10 MB", "1 day", "500 KB", "12:00", "1 week"
-    LOG_RETENTION = None  # e.g., "7 days", "1 month", "10 files"
+    LOG_RETENTION = None  # e.g., "7 days", "1 month", or 10 (keep 10 files)
     LOG_COMPRESSION = None  # e.g., "zip", "gz", "tar.gz"
+
+    # Traceback settings
+    LOG_BACKTRACE = True
+    # Defaults to False unlike loguru: diagnose=True writes local variable
+    # values (passwords, tokens, PII) into the log file.
+    LOG_DIAGNOSE = False
 
     # ///////////////////////////////////////////////////////////////
     # CONFIGURATION DEFAULTS
@@ -132,6 +138,8 @@ class DefaultConfiguration:
             "log-rotation": cls.LOG_ROTATION,
             "log-retention": cls.LOG_RETENTION,
             "log-compression": cls.LOG_COMPRESSION,
+            "log-backtrace": cls.LOG_BACKTRACE,
+            "log-diagnose": cls.LOG_DIAGNOSE,
         }
 
     @classmethod
@@ -177,6 +185,8 @@ class DefaultConfiguration:
             "log-rotation": cls.LOG_ROTATION,
             "log-retention": cls.LOG_RETENTION,
             "log-compression": cls.LOG_COMPRESSION,
+            "log-backtrace": cls.LOG_BACKTRACE,
+            "log-diagnose": cls.LOG_DIAGNOSE,
         }
 
 

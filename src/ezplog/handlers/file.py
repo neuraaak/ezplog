@@ -28,6 +28,12 @@ from loguru._logger import Logger as LoguruLogger
 # Local imports
 from ..core.exceptions import FileOperationError, LoggingError, ValidationError
 from ..core.interfaces import LoggingHandler
+from ..types.aliases import (
+    SUPPORTED_COMPRESSIONS,
+    CompressionSpec,
+    RetentionSpec,
+    RotationSpec,
+)
 from ..types.enums import LogLevel
 from ..utils import safe_str_convert, sanitize_for_file
 
@@ -55,9 +61,12 @@ class EzLogger(LoggingHandler):
         self,
         log_file: Path | str,
         level: str = "INFO",
-        rotation: str | None = None,
-        retention: str | None = None,
-        compression: str | None = None,
+        rotation: RotationSpec = None,
+        retention: RetentionSpec = None,
+        compression: CompressionSpec = None,
+        *,
+        backtrace: bool = True,
+        diagnose: bool = False,
     ) -> None:
         """
         Initialize the file logger handler.
@@ -65,9 +74,16 @@ class EzLogger(LoggingHandler):
         Args:
             log_file: Path to the log file
             level: The desired logging level
-            rotation: Rotation size (e.g., "10 MB") or time (e.g., "1 day")
-            retention: Retention period (e.g., "7 days")
-            compression: Compression format (e.g., "zip", "gz")
+            rotation: Rotation trigger — size string ("10 MB"), byte count,
+                datetime.time, datetime.timedelta, or a predicate callable
+            retention: Retention policy — duration string ("7 days"), number of
+                files to keep (int), timedelta, or a cleanup callable
+            compression: Compression format name (see SUPPORTED_COMPRESSIONS)
+                or a callable applied to the rotated file path
+            backtrace: If True, extend tracebacks beyond the catching point
+            diagnose: If True, include local variable values in tracebacks.
+                Defaults to False, unlike loguru: locals routinely hold
+                secrets, and log files are archived and shipped elsewhere.
 
         Raises:
             ValidationError: If the provided level is invalid
@@ -76,14 +92,24 @@ class EzLogger(LoggingHandler):
         if not LogLevel.is_valid_level(level):
             raise ValidationError(f"Invalid log level: {level}", "level", level)
 
+        if isinstance(compression, str) and compression not in SUPPORTED_COMPRESSIONS:
+            raise ValidationError(
+                f"Unsupported compression format: {compression!r}. "
+                f"Expected one of: {', '.join(sorted(SUPPORTED_COMPRESSIONS))}",
+                "compression",
+                compression,
+            )
+
         self._level = level.upper()
         self._level_manually_set = False
         self._log_file = Path(log_file)
         self._logger = logger.bind(task="logger")
         self._logger_id: int | None = None
-        self._rotation = rotation
-        self._retention = retention
-        self._compression = compression
+        self._rotation: RotationSpec = rotation
+        self._retention: RetentionSpec = retention
+        self._compression: CompressionSpec = compression
+        self._backtrace = backtrace
+        self._diagnose = diagnose
 
         # Validate and create parent directory
         try:
@@ -142,6 +168,8 @@ class EzLogger(LoggingHandler):
                 rotation=self._rotation if self._rotation else None,
                 retention=self._retention if self._retention else None,
                 compression=self._compression if self._compression else None,
+                backtrace=self._backtrace,
+                diagnose=self._diagnose,
             )
         except Exception as e:
             raise LoggingError(f"Failed to initialize file logger: {e}", "file") from e
@@ -161,19 +189,29 @@ class EzLogger(LoggingHandler):
         return self._level_manually_set
 
     @property
-    def rotation(self) -> str | None:
+    def rotation(self) -> RotationSpec:
         """Return current rotation setting."""
         return self._rotation
 
     @property
-    def retention(self) -> str | None:
+    def retention(self) -> RetentionSpec:
         """Return current retention setting."""
         return self._retention
 
     @property
-    def compression(self) -> str | None:
+    def compression(self) -> CompressionSpec:
         """Return current compression setting."""
         return self._compression
+
+    @property
+    def backtrace(self) -> bool:
+        """Return whether tracebacks extend beyond the catching point."""
+        return self._backtrace
+
+    @property
+    def diagnose(self) -> bool:
+        """Return whether local variable values appear in tracebacks."""
+        return self._diagnose
 
     def mark_level_as_configured(self) -> None:
         """Mark the current level as coming from configuration (not manual set)."""

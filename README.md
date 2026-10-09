@@ -154,11 +154,13 @@ logger: Logger = ezpl.get_logger()
 
 # Console methods
 printer.info(), printer.success(), printer.warning(), printer.error()
+printer.trace(), printer.exception()
 printer.tip(), printer.system(), printer.install()  # Pattern methods
 printer.wizard.panel(), printer.wizard.table(), printer.wizard.json()
 
 # File logging
 logger.info(), logger.debug(), logger.warning(), logger.error()
+logger.trace(), logger.exception()
 
 # Configuration
 ezpl.set_level("DEBUG")

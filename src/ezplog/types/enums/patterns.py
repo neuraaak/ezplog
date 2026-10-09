@@ -32,6 +32,7 @@ class Pattern(Enum):
     """
 
     # Main patterns
+    TRACE = "TRACE"
     SUCCESS = "SUCCESS"
     ERROR = "ERROR"
     WARN = "WARN"
@@ -54,6 +55,7 @@ class Pattern(Enum):
 # Color mapping for patterns (Rich color names)
 PATTERN_COLORS: dict[Pattern, str] = {
     # Main patterns
+    Pattern.TRACE: "dim cyan",  # ⚪ Trace (dimmed)
     Pattern.SUCCESS: "bright_green",  # 🟢 Success
     Pattern.ERROR: "bright_red",  # 🔴 Error
     Pattern.WARN: "bright_yellow",  # 🟡 Warning

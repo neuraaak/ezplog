@@ -1,0 +1,86 @@
+name: 02 · Tag Sync
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tag-sync-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: Release gate (CI)
+    uses: ./.github/workflows/01-ci.yml
+
+  tag-sync:
+    name: Determine action & sync tags
+    needs: ci
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      tag_action: ${{ steps.gate.outputs.tag_action }}
+      version: ${{ steps.version.outputs.version }}
+      tag_name: ${{ steps.gate.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          fetch-depth: 0
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -E '^version\s*=\s*"' pyproject.toml | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/')
+          test -n "$VERSION" || { echo "::error::No version found in pyproject.toml"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Determine tag action
+        id: gate
+        run: |
+          TAG_NAME="v${{ steps.version.outputs.version }}"
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "tag_action=preview" >> "$GITHUB_OUTPUT"
+          elif git rev-parse -q --verify "refs/tags/$TAG_NAME" >/dev/null; then
+            echo "tag_action=skip" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_action=create" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Create immutable tag and move major alias
+        if: steps.gate.outputs.tag_action == 'create'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          MAJOR="${VERSION%%.*}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+          git tag -f "v${MAJOR}-latest"
+          git push origin --force "v${MAJOR}-latest"
+
+  publish:
+    needs: tag-sync
+    if: needs.tag-sync.outputs.tag_action != 'skip'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/03-publish.yml
+    with:
+      version: ${{ needs.tag-sync.outputs.version }}
+      tag_action: ${{ needs.tag-sync.outputs.tag_action }}
+
+  docs:
+    needs: [tag-sync, publish]
+    if: |
+      always() &&
+      needs.tag-sync.result == 'success' &&
+      (needs.tag-sync.outputs.tag_action == 'skip' || needs.publish.result == 'success')
+    permissions:
+      contents: write
+    uses: ./.github/workflows/04-docs.yml
+    with:
+      version: ${{ needs.tag-sync.outputs.version }}
+      tag_action: ${{ needs.tag-sync.outputs.tag_action }}

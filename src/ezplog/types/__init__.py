@@ -15,6 +15,12 @@ from __future__ import annotations
 # IMPORTS
 # ///////////////////////////////////////////////////////////////
 # Local imports
+from .aliases import (
+    SUPPORTED_COMPRESSIONS,
+    CompressionSpec,
+    RetentionSpec,
+    RotationSpec,
+)
 from .enums import (
     PATTERN_COLORS,
     LogLevel,
@@ -36,6 +42,11 @@ __all__ = [
     "PATTERN_COLORS",
     "get_pattern_color",
     "get_pattern_color_by_name",
+    # Type alias exports
+    "RotationSpec",
+    "RetentionSpec",
+    "CompressionSpec",
+    "SUPPORTED_COMPRESSIONS",
     # Protocol exports
     "PrinterProtocol",
     "LoggerProtocol",

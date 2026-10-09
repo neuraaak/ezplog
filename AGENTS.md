@@ -103,6 +103,15 @@ printer = get_printer()
 
 ## Commandes de validation
 
+Raccourcis `poe` (équivalents, à préférer) :
+
+```bash
+uv run poe check        # format-check + lint + typecheck + imports + test
+uv run poe lint-fix     # corrige automatiquement
+uv run poe test-unit    # tests unitaires seuls
+uv run poe docs-build   # build mkdocs strict
+```
+
 Lancer après toute modification de `src/` :
 
 ```bash

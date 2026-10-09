@@ -360,11 +360,11 @@ class TestSpecialCharacters:
         """Test logger with Unicode characters."""
         logger_handler = EzLogger(temp_log_file, level="INFO")
         logger = logger_handler.get_loguru()
-        strange_message = "Test spécial: éèàçô 漢字 🚀"
+        strange_message = "Special test: éèàçô 漢字 🚀"
         logger.info(strange_message)
         wait_for_file(temp_log_file)
         content = temp_log_file.read_text(encoding="utf-8")
-        assert "Test spécial" in content
+        assert "Special test" in content
         assert "漢字" in content
         assert "🚀" in content
 
@@ -486,3 +486,79 @@ class TestDirectoryCreation:
         log_file.parent.mkdir(parents=True, exist_ok=True)
         logger_handler = EzLogger(log_file, level="INFO")
         assert logger_handler.get_log_file() == log_file
+
+
+@pytest.mark.unit
+def test_logger_accepts_timedelta_rotation(tmp_path):
+    from datetime import timedelta
+
+    from ezplog.handlers.file import EzLogger
+
+    logger = EzLogger(log_file=tmp_path / "a.log", rotation=timedelta(hours=6))
+    assert logger.rotation == timedelta(hours=6)
+
+
+@pytest.mark.unit
+def test_logger_accepts_int_retention(tmp_path):
+    from ezplog.handlers.file import EzLogger
+
+    logger = EzLogger(log_file=tmp_path / "b.log", retention=10)
+    assert logger.retention == 10
+
+
+@pytest.mark.unit
+def test_logger_accepts_valid_compression(tmp_path):
+    from ezplog.handlers.file import EzLogger
+
+    logger = EzLogger(log_file=tmp_path / "c.log", compression="zip")
+    assert logger.compression == "zip"
+
+
+@pytest.mark.unit
+def test_logger_rejects_invalid_compression(tmp_path):
+    from ezplog.core.exceptions import ValidationError
+    from ezplog.handlers.file import EzLogger
+
+    with pytest.raises(ValidationError):
+        EzLogger(log_file=tmp_path / "d.log", compression="zpi")
+
+
+@pytest.mark.unit
+def test_logger_accepts_callable_compression(tmp_path):
+    from ezplog.handlers.file import EzLogger
+
+    def my_compressor(_path: str) -> None:
+        return None
+
+    logger = EzLogger(log_file=tmp_path / "e.log", compression=my_compressor)
+    assert logger.compression is my_compressor
+
+
+@pytest.mark.unit
+def test_diagnose_defaults_to_false(tmp_path):
+    from ezplog.handlers.file import EzLogger
+
+    logger = EzLogger(log_file=tmp_path / "f.log")
+    assert logger.diagnose is False
+
+
+@pytest.mark.unit
+def test_backtrace_defaults_to_true(tmp_path):
+    from ezplog.handlers.file import EzLogger
+
+    logger = EzLogger(log_file=tmp_path / "g.log")
+    assert logger.backtrace is True
+
+
+@pytest.mark.unit
+def test_traceback_options_reach_loguru_add(tmp_path, mocker):
+    from loguru._logger import Logger as LoguruLogger
+
+    from ezplog.handlers.file import EzLogger
+
+    add = mocker.patch.object(LoguruLogger, "add", return_value=1)
+    EzLogger(log_file=tmp_path / "h.log", diagnose=True, backtrace=False)
+
+    kwargs = add.call_args.kwargs
+    assert kwargs["diagnose"] is True
+    assert kwargs["backtrace"] is False

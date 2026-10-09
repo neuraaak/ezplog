@@ -88,22 +88,22 @@ def main() -> None:
         "--type",
         choices=["unit", "integration", "robustness", "all"],
         default="unit",
-        help="Type de tests à exécuter",
+        help="Test type to run",
     )
     parser.add_argument(
-        "--coverage", action="store_true", help="Générer un rapport de couverture"
+        "--coverage", action="store_true", help="Generate a coverage report"
     )
-    parser.add_argument("--verbose", action="store_true", help="Mode verbeux")
-    parser.add_argument("--fast", action="store_true", help="Exclure les tests lents")
+    parser.add_argument("--verbose", action="store_true", help="Verbose mode")
+    parser.add_argument("--fast", action="store_true", help="Exclude slow tests")
     parser.add_argument(
         "--parallel",
         action="store_true",
-        help="Exécuter les tests en parallèle (pytest-xdist)",
+        help="Run tests in parallel (pytest-xdist)",
     )
     parser.add_argument(
         "--marker",
         type=str,
-        help="Exécuter uniquement les tests avec ce marker (ex: wizard, config)",
+        help="Run only tests with this marker (for example, wizard or config)",
     )
     args = parser.parse_args()
 
