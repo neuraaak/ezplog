@@ -1,14 +1,24 @@
 name: 03 · Publish to PyPI
 
+# Build + package on every mode; upload to PyPI only when `tag_action` is
+# `create` (a real release). Gating is keyed on the `tag_action` INPUT, never on
+# github.event_name: in a reusable workflow the event is inherited from the
+# caller (`push`), so an `event_name == 'workflow_call'` check never matches —
+# and an `event_name == 'workflow_dispatch'` escape hatch would let a manual run
+# from an arbitrary ref fire the irreversible PyPI upload. A manual dispatch
+# therefore defaults to `preview` and must opt in explicitly.
+
 on:
   workflow_dispatch:
     inputs:
       tag_action:
-        description: "create = publish to PyPI | preview = build only"
+        description: "create = publish to PyPI (irreversible) | preview = build only"
         required: true
         type: choice
         default: preview
-        options: [preview, create]
+        options:
+          - preview
+          - create
   workflow_call:
     inputs:
       version:
@@ -17,7 +27,7 @@ on:
       tag_action:
         required: false
         type: string
-        default: create
+        default: create # create | preview
 
 permissions: {}
 
@@ -36,38 +46,62 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
+
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+
       - name: Resolve version
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version || '' }}
         run: |
           VERSION="$INPUT_VERSION"
-          if [ -z "$VERSION" ]; then VERSION=$(grep -E '^version\s*=\s*"' pyproject.toml | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/'); fi
-          test -n "$VERSION" || { echo "::error::No version found in pyproject.toml"; exit 1; }
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -E '^version\s*=\s*"' pyproject.toml | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/')
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "::error::No version found in pyproject.toml"
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           enable-cache: true
+
       - run: uv sync --frozen --group dev
-      - run: PYTHONPATH=src uv run --frozen poe imports
-      - run: uv run --frozen poe build
-      - run: uv run --frozen twine check dist/*
+
+      - name: Enforce import contracts
+        run: uv run --frozen poe imports
+
+      - name: Build package
+        run: uv run --frozen poe build
+
+      - name: Check package
+        run: uv run --frozen twine check dist/*
+
       - name: Verify wheel installation
         run: |
           python -m zipfile -t dist/*.whl
           python - <<'PY'
-          from glob import glob
-          from zipfile import ZipFile
+          import glob
+          import sys
+          import zipfile
 
-          wheels = glob("dist/*.whl")
+          wheels = glob.glob("dist/*.whl")
           if not wheels:
-              raise SystemExit("No wheel found in dist/")
-          with ZipFile(wheels[0]) as wheel:
-              if not any(name.startswith("ezplog/") for name in wheel.namelist()):
-                  raise SystemExit("Wheel does not contain ezplog package")
+            raise SystemExit("No wheel found in dist/")
+
+          with zipfile.ZipFile(wheels[0]) as zf:
+            names = zf.namelist()
+
+          if not any(name.startswith("ezplog/") for name in names):
+            raise SystemExit("Wheel does not contain ezplog package")
+
+          print("Wheel integrity check passed")
           PY
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
@@ -85,11 +119,25 @@ jobs:
     environment:
       name: pypi
       url: https://pypi.org/project/${{ env.PACKAGE_NAME }}/${{ needs.validate.outputs.version }}/
+
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dist
           path: dist/
+
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
+          verbose: true
+          # Attestations disabled: when called as a reusable workflow from
+          # 02-tag-sync.yml, the OIDC token's Build Config URI reflects the
+          # caller rather than this workflow, causing PyPI Trusted Publisher
+          # verification to fail.
           attestations: false
+
+      - name: Summary
+        run: |
+          echo "## 📦 Published to PyPI" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Package**: ${{ env.PACKAGE_NAME }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version**: ${{ needs.validate.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **URL**: https://pypi.org/project/${{ env.PACKAGE_NAME }}/${{ needs.validate.outputs.version }}/" >> "$GITHUB_STEP_SUMMARY"
