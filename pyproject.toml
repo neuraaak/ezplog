@@ -71,6 +71,10 @@ docs = [
     "pymdown-extensions>=10.7",
     "git-cliff>=2.7.0",
     "grimp>=2.3.0",
+
+    # Task runner: 04-docs runs `poe docs-coverage|imports|graph` and syncs
+    # only `docs` + `test`, so poethepoet must be reachable from this group.
+    "poethepoet>=0.32",
 ]
 dev = [
     # Tests (single source of truth, no duplication)
@@ -126,7 +130,6 @@ lint = "ruff check src tests"
 lint-fix = "ruff check --fix src tests"
 format = "ruff format src tests"
 format-check = "ruff format --check src tests"
-imports = "lint-imports"
 security = { help = "Run Bandit and audit locked dependencies", sequence = [
     "bandit -c pyproject.toml -r src",
     "pip-audit",
@@ -138,9 +141,15 @@ test-unit = "pytest -m unit"
 test-fast = "pytest -n auto -m 'not slow'"
 docs = "mkdocs serve"
 docs-build = "mkdocs build --strict"
+docs-coverage = "pytest --cov=src/ezplog --cov-report=html --cov-report=xml -q"
 graph = "python .scripts/dev/generate_architecture_graph.py"
 version = "python .scripts/dev/update_version.py"
 build = "uv build"
+
+[tool.poe.tasks.imports]
+help = "Check import-linter layer contracts"
+cmd = "lint-imports"
+env = { PYTHONPATH = "src" }
 
 [tool.poe.tasks.typecheck]
 help = "Run pyright then ty"

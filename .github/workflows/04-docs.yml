@@ -47,9 +47,11 @@ jobs:
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           enable-cache: true
-      - run: uv sync --frozen --group dev
-      - run: uv run --frozen pytest --cov=src/ezplog --cov-report=html --cov-report=xml -q
-      - run: PYTHONPATH=src uv run --frozen lint-imports
+      - run: uv sync --frozen --group docs --group test
+      - name: Generate coverage report
+        run: uv run --frozen poe docs-coverage
+      - name: Enforce import contracts
+        run: uv run --frozen poe imports
       - name: Generate architecture graph
         run: |
           if [ -f .scripts/dev/generate_architecture_graph.py ]; then
