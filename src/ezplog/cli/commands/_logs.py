@@ -129,6 +129,178 @@ def logs_group() -> None:
     """
 
 
+def _follow_log(log_file: Path, parser: LogParser, level: str | None) -> None:
+    """
+    Stream new lines appended to a log file, like `tail -f`.
+
+    Args:
+        log_file: Path to the log file to follow
+        parser: Parser used to read each appended line
+        level: Optional level filter, applied case-insensitively
+    """
+    console.print(f"[cyan]Following {log_file}...[/cyan]")
+    console.print("[dim]Press Ctrl+C to stop[/dim]\n")
+
+    try:
+        with open(log_file, encoding="utf-8") as handle:
+            handle.seek(0, 2)  # start at end of file
+
+            while True:
+                line = handle.readline()
+                if not line:
+                    time.sleep(0.1)
+                    continue
+                entry = parser.parse_line(line, 0)
+                if entry and (not level or entry.level.upper() == level.upper()):
+                    console.print(entry.raw_line)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Stopped following[/yellow]")
+
+
+def _print_entries(parser: LogParser, lines: int, level: str | None) -> None:
+    """
+    Print the last entries of a log file.
+
+    Args:
+        parser: Parser for the log file
+        lines: Maximum number of entries to read
+        level: Optional level filter, applied case-insensitively
+    """
+    entries = parser.parse_lines(max_lines=lines)
+
+    if level:
+        entries = [e for e in entries if e.level.upper() == level.upper()]
+
+    if not entries:
+        console.print("[yellow]No log entries found[/yellow]")
+        return
+
+    for entry in entries:
+        console.print(entry.raw_line)
+
+
+def _file_info_table(file_info: dict) -> Table:
+    """
+    Build the file-information table of the `stats` command.
+
+    Args:
+        file_info: The "file_info" section of the statistics payload
+
+    Returns:
+        A renderable table
+    """
+    table = Table(
+        title="File Information", show_header=True, header_style=_HEADER_STYLE
+    )
+    table.add_column("Property", style="cyan")
+    table.add_column("Value", style="white")
+
+    table.add_row("Path", file_info["file_path"])
+    table.add_row(
+        "Size", f"{file_info['size_mb']} MB ({file_info['size_bytes']} bytes)"
+    )
+    table.add_row("Entries", str(file_info["line_count"]))
+
+    date_range = file_info["date_range"]
+    if date_range:
+        for label, key in (("First Entry", "first"), ("Last Entry", "last")):
+            moment = date_range[key]
+            table.add_row(
+                label,
+                moment.strftime("%Y-%m-%d %H:%M:%S") if moment else "N/A",
+            )
+
+    return table
+
+
+def _level_counts_table(level_counts: dict[str, int]) -> Table:
+    """
+    Build the level-distribution table of the `stats` command.
+
+    Args:
+        level_counts: Mapping of level name to number of entries
+
+    Returns:
+        A renderable table, most frequent level first
+    """
+    table = Table(
+        title="Level Distribution",
+        show_header=True,
+        header_style=_HEADER_STYLE,
+    )
+    table.add_column("Level", style="cyan")
+    table.add_column("Count", style="green")
+
+    for level, count in sorted(level_counts.items(), key=lambda x: x[1], reverse=True):
+        table.add_row(level, str(count))
+
+    return table
+
+
+def _matches_cleanup_criteria(
+    log_file: Path, days: int | None, size_bytes: int | None
+) -> bool:
+    """
+    Report whether a log file matches either cleanup criterion.
+
+    Args:
+        log_file: The file to test
+        days: Delete files older than this many days, if given
+        size_bytes: Delete files larger than this many bytes, if given
+
+    Returns:
+        True when at least one given criterion matches
+    """
+    if days:
+        file_age = datetime.now() - datetime.fromtimestamp(log_file.stat().st_mtime)
+        if file_age > timedelta(days=days):
+            return True
+
+    return size_bytes is not None and log_file.stat().st_size > size_bytes
+
+
+def _confirm_cleanup(files_to_delete: list[Path]) -> bool:
+    """
+    Show the deletion plan and ask the user to confirm it.
+
+    Args:
+        files_to_delete: The files that would be removed
+
+    Returns:
+        True when the user confirmed the deletion
+    """
+    console.print(f"[yellow]Files to be deleted ({len(files_to_delete)}):[/yellow]")
+    for log_file in files_to_delete:
+        console.print(f"  - {log_file}")
+
+    if click.confirm("\nAre you sure you want to delete these files?"):
+        return True
+
+    console.print("[yellow]Cleanup cancelled[/yellow]")
+    return False
+
+
+def _delete_log_files(files_to_delete: list[Path]) -> int:
+    """
+    Delete each file, reporting failures without aborting the run.
+
+    Args:
+        files_to_delete: The files to remove
+
+    Returns:
+        The number of files actually deleted
+    """
+    deleted_count = 0
+    for log_file in files_to_delete:
+        try:
+            log_file.unlink()
+            deleted_count += 1
+            console.print(f"[green]✓[/green] Deleted: {log_file}")
+        except OSError as e:
+            console.print(f"[red]✗[/red] Failed to delete {log_file}: {e}")
+    return deleted_count
+
+
 # ///////////////////////////////////////////////////////////////
 # COMMANDS
 # ///////////////////////////////////////////////////////////////
@@ -167,40 +339,9 @@ def view_command(
         parser = LogParser(log_file)
 
         if follow:
-            # Follow mode (tail -f)
-            console.print(f"[cyan]Following {log_file}...[/cyan]")
-            console.print("[dim]Press Ctrl+C to stop[/dim]\n")
-
-            try:
-                with open(log_file, encoding="utf-8") as f:
-                    # Go to end of file
-                    f.seek(0, 2)
-
-                    while True:
-                        line = f.readline()
-                        if line:
-                            entry = parser.parse_line(line, 0)
-                            if entry:  # noqa: SIM102
-                                if not level or entry.level.upper() == level.upper():
-                                    console.print(entry.raw_line)
-                        else:
-                            time.sleep(0.1)
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Stopped following[/yellow]")
+            _follow_log(log_file, parser, level)
         else:
-            # Regular view
-            entries = parser.parse_lines(max_lines=lines)
-
-            if level:
-                entries = [e for e in entries if e.level.upper() == level.upper()]
-
-            if not entries:
-                console.print("[yellow]No log entries found[/yellow]")
-                return
-
-            # Display entries
-            for entry in entries:
-                console.print(entry.raw_line)
+            _print_entries(parser, lines, level)
 
     except click.ClickException:
         raise
@@ -303,59 +444,12 @@ def stats_command(file: Path | None, format: str) -> None:
             console.print(json.dumps(all_stats, indent=2, default=str))
         else:
             # Table output
-            # File info
-            file_info = all_stats["file_info"]
-            info_table = Table(
-                title="File Information", show_header=True, header_style=_HEADER_STYLE
-            )
-            info_table.add_column("Property", style="cyan")
-            info_table.add_column("Value", style="white")
+            console.print(_file_info_table(all_stats["file_info"]))
 
-            info_table.add_row("Path", file_info["file_path"])
-            info_table.add_row(
-                "Size", f"{file_info['size_mb']} MB ({file_info['size_bytes']} bytes)"
-            )
-            info_table.add_row("Entries", str(file_info["line_count"]))
-
-            if file_info["date_range"]:
-                date_range = file_info["date_range"]
-                info_table.add_row(
-                    "First Entry",
-                    (
-                        date_range["first"].strftime("%Y-%m-%d %H:%M:%S")
-                        if date_range["first"]
-                        else "N/A"
-                    ),
-                )
-                info_table.add_row(
-                    "Last Entry",
-                    (
-                        date_range["last"].strftime("%Y-%m-%d %H:%M:%S")
-                        if date_range["last"]
-                        else "N/A"
-                    ),
-                )
-
-            console.print(info_table)
-
-            # Level counts
             level_counts = all_stats["level_counts"]
             if level_counts:
-                level_table = Table(
-                    title="Level Distribution",
-                    show_header=True,
-                    header_style=_HEADER_STYLE,
-                )
-                level_table.add_column("Level", style="cyan")
-                level_table.add_column("Count", style="green")
-
-                for level, count in sorted(
-                    level_counts.items(), key=lambda x: x[1], reverse=True
-                ):
-                    level_table.add_row(level, str(count))
-
                 console.print("\n")
-                console.print(level_table)
+                console.print(_level_counts_table(level_counts))
 
     except click.ClickException:
         raise
@@ -520,56 +614,22 @@ def clean_command(
             console.print("[yellow]No log files to clean[/yellow]")
             return
 
-        # Filter by criteria
-        files_to_delete = []
-
-        for log_file in files_to_clean:
-            should_delete = False
-
-            if days:
-                # Check age
-                file_age = datetime.now() - datetime.fromtimestamp(
-                    log_file.stat().st_mtime
-                )
-                if file_age > timedelta(days=days):
-                    should_delete = True
-
-            if size:
-                # Check size
-                file_size = log_file.stat().st_size
-                size_bytes = _parse_size(size)
-                if file_size > size_bytes:
-                    should_delete = True
-
-            if should_delete:
-                files_to_delete.append(log_file)
+        # Parsed up front so an invalid --size fails whatever --days matched.
+        size_bytes = _parse_size(size) if size else None
+        files_to_delete = [
+            log_file
+            for log_file in files_to_clean
+            if _matches_cleanup_criteria(log_file, days, size_bytes)
+        ]
 
         if not files_to_delete:
             console.print("[green]No files match the cleanup criteria[/green]")
             return
 
-        # Confirm deletion
-        if not confirm:
-            console.print(
-                f"[yellow]Files to be deleted ({len(files_to_delete)}):[/yellow]"
-            )
-            for f in files_to_delete:
-                console.print(f"  - {f}")
+        if not confirm and not _confirm_cleanup(files_to_delete):
+            return
 
-            if not click.confirm("\nAre you sure you want to delete these files?"):
-                console.print("[yellow]Cleanup cancelled[/yellow]")
-                return
-
-        # Delete files
-        deleted_count = 0
-        for log_file in files_to_delete:
-            try:
-                log_file.unlink()
-                deleted_count += 1
-                console.print(f"[green]✓[/green] Deleted: {log_file}")
-            except OSError as e:
-                console.print(f"[red]✗[/red] Failed to delete {log_file}: {e}")
-
+        deleted_count = _delete_log_files(files_to_delete)
         console.print(f"\n[green]Deleted {deleted_count} file(s)[/green]")
 
     except click.ClickException:
