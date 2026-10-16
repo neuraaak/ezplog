@@ -42,9 +42,9 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
-      - run: uv sync --frozen --group dev
-      - run: uv run --frozen poe lint
-      - run: uv run --frozen poe format-check
+      - run: uv sync --frozen --no-build --group dev
+      - run: uv run --frozen --no-build poe lint
+      - run: uv run --frozen --no-build poe format-check
 
   type-check:
     name: Type check & contracts
@@ -59,11 +59,11 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
-      - run: uv sync --frozen --group dev
-      - run: uv run --frozen poe typecheck
+      - run: uv sync --frozen --no-build --group dev
+      - run: uv run --frozen --no-build poe typecheck
       # The poe task carries PYTHONPATH=src itself (import-linter 2.x needs
       # the package importable).
-      - run: uv run --frozen poe imports
+      - run: uv run --frozen --no-build poe imports
 
   security:
     name: Security scan
@@ -78,11 +78,11 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
-      - run: uv sync --frozen --group dev
+      - run: uv sync --frozen --no-build --group dev
       # `poe security` chains bandit (SAST of the package's own code) and
       # pip-audit (CVEs in the locked dependencies). No advisory is ignored
       # here — if one ever has to be, document impact and exit condition.
-      - run: uv run --frozen poe security
+      - run: uv run --frozen --no-build poe security
 
   test:
     name: Tests (Python ${{ matrix.python }})
@@ -101,10 +101,10 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - run: uv sync --frozen --group dev
+      - run: uv sync --frozen --no-build --group dev
       # `poe test-ci` carries the coverage threshold, which is deliberately
       # not in addopts: a partial local run must not exit with code 1.
-      - run: uv run --frozen poe test-ci
+      - run: uv run --frozen --no-build poe test-ci
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

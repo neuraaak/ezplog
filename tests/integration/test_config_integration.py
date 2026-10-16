@@ -20,7 +20,6 @@ from __future__ import annotations
 # ///////////////////////////////////////////////////////////////
 # Standard library imports
 import json
-import os
 from pathlib import Path
 
 # Third-party imports
@@ -70,6 +69,7 @@ class TestConfigManagerEzplIntegration:
         self,
         temp_config_file: Path,
         temp_log_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
         clean_env: None,  # noqa: ARG002
     ) -> None:
         """Test integration of environment variables and config file."""
@@ -79,17 +79,16 @@ class TestConfigManagerEzplIntegration:
         temp_config_file.write_text(json.dumps(config_data), encoding="utf-8")
 
         # Set environment variable
-        os.environ["EZPL_LOG_LEVEL"] = "ERROR"
+        monkeypatch.setenv("EZPL_LOG_LEVEL", "ERROR")
 
         # Mock config file path
-        with pytest.MonkeyPatch().context() as m:
-            m.setattr(
-                "ezplog.config.manager.DefaultConfiguration.CONFIG_FILE",
-                temp_config_file,
-            )
-            _ = Ezpl(log_file=temp_log_file)
-            # Environment should override file
-            # Note: This tests the integration, actual priority is tested in unit tests
+        monkeypatch.setattr(
+            "ezplog.config.manager.DefaultConfiguration.CONFIG_FILE",
+            temp_config_file,
+        )
+        _ = Ezpl(log_file=temp_log_file)
+        # Environment should override file
+        # Note: This tests the integration, actual priority is tested in unit tests
 
     def test_should_persist_and_restore_values_when_save_and_reload_are_called(
         self,

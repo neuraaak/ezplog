@@ -29,7 +29,6 @@ from __future__ import annotations
 # Standard library imports
 import json
 import logging
-import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -120,11 +119,12 @@ class TestConfigurationPriority:
     def test_should_give_highest_priority_to_arg_when_env_and_file_are_also_set(
         self,
         temp_config_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
         clean_env: None,  # noqa: ARG002
     ) -> None:
         """Test that argument has highest priority."""
         # Set environment variable
-        os.environ["EZPL_LOG_LEVEL"] = "WARNING"
+        monkeypatch.setenv("EZPL_LOG_LEVEL", "WARNING")
         # Set config file
         config_data = {"log-level": "ERROR"}
         temp_config_file.parent.mkdir(parents=True, exist_ok=True)
@@ -139,6 +139,7 @@ class TestConfigurationPriority:
     def test_should_prioritize_env_over_file_when_both_are_set(
         self,
         temp_config_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
         clean_env: None,  # noqa: ARG002
     ) -> None:
         """Test that environment variable overrides config file."""
@@ -147,7 +148,7 @@ class TestConfigurationPriority:
         temp_config_file.parent.mkdir(parents=True, exist_ok=True)
         temp_config_file.write_text(json.dumps(config_data), encoding="utf-8")
         # Set environment variable
-        os.environ["EZPL_LOG_LEVEL"] = "WARNING"
+        monkeypatch.setenv("EZPL_LOG_LEVEL", "WARNING")
 
         ezpl = Ezpl()
         # Environment should override file

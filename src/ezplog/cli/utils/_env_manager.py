@@ -226,7 +226,7 @@ class UserEnvManager:
                 return True
 
             # Remove all EZPL_ vars
-            for key in list(ezpl_vars.keys()):
+            for key in ezpl_vars:
                 del env_vars[key]
 
             self._save_env_file(env_vars)

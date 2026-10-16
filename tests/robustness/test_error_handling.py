@@ -178,7 +178,7 @@ class TestFileOperationErrors:
             ezpl = Ezpl(log_file=invalid_path)
             # If it succeeds, verify file was created
             assert ezpl._log_file == invalid_path
-        except (FileOperationError, OSError, PermissionError):
+        except (FileOperationError, OSError):
             # Expected behavior for permission errors
             pass
 

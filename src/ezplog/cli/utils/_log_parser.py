@@ -106,9 +106,13 @@ class LogParser:
     """
 
     # Pattern for parsing log lines
+    # Possessive quantifiers (3.11+): every class below excludes the delimiter
+    # that follows it, so backtracking can never produce a match the greedy
+    # form would not. Without them the adjacent `[^:]+` groups backtrack
+    # super-linearly on a long line that is missing a colon.
     LOG_PATTERN = re.compile(
-        r"^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+\|\s+(\w+)\s+\|\s+"
-        r"([^:]+):([^:]+):([^\s-]+)\s+-\s+(.+)$"
+        r"^(\d{4}-\d{2}-\d{2}\s++\d{2}:\d{2}:\d{2})\s++\|\s++(\w++)\s++\|\s++"
+        r"([^:]++):([^:]++):([^\s-]++)\s+-\s+(.+)$"
     )
 
     # Pattern for session separators

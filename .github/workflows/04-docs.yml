@@ -63,15 +63,15 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
-      - run: uv sync --frozen --group docs --group test
+      - run: uv sync --frozen --no-build --group docs --group test
       # The mkdocs-coverage plugin crashes on a missing (or empty) htmlcov/, so
       # the report has to exist before the build — it is a docs input here, not
       # a test run.
       - name: Generate coverage report
-        run: uv run --frozen poe docs-coverage
+        run: uv run --frozen --no-build poe docs-coverage
       # --strict: a dead nav entry or a broken reference fails the PR instead of
       # reaching the published site.
-      - run: uv run --frozen poe docs-build
+      - run: uv run --frozen --no-build poe docs-build
 
   docs:
     name: Build & deploy docs
@@ -97,13 +97,13 @@ jobs:
           python-version: "3.13"
           enable-cache: true
 
-      - run: uv sync --frozen --group docs --group test
+      - run: uv sync --frozen --no-build --group docs --group test
 
       - name: Generate coverage report
-        run: uv run --frozen poe docs-coverage
+        run: uv run --frozen --no-build poe docs-coverage
 
       - name: Generate architecture graph
-        run: uv run --frozen poe graph
+        run: uv run --frozen --no-build poe graph
 
       - name: Generate changelog
         uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
@@ -116,7 +116,7 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version || '' }}
         run: |
-          VERSION="${INPUT_VERSION:-$(uv run --frozen poe -q read-version)}"
+          VERSION="${INPUT_VERSION:-$(uv run --frozen --no-build poe -q read-version)}"
           if [ -z "$VERSION" ]; then
             echo "::error::No version found in pyproject.toml"
             exit 1
@@ -135,17 +135,17 @@ jobs:
         env:
           DOCS_VERSION: ${{ steps.docs_version.outputs.version }}
         run: |
-          uv run --frozen mike deploy --push --update-aliases "$DOCS_VERSION" latest
-          uv run --frozen mike set-default --push latest
+          uv run --frozen --no-build mike deploy --push --update-aliases "$DOCS_VERSION" latest
+          uv run --frozen --no-build mike set-default --push latest
 
       # skip → refresh the `dev` alias so main stays visible between releases.
       - name: Deploy dev docs (skip)
         if: inputs.tag_action == 'skip'
-        run: uv run --frozen mike deploy --push --update-aliases dev
+        run: uv run --frozen --no-build mike deploy --push --update-aliases dev
 
       # preview → build the versioned site WITHOUT pushing, to validate config.
       - name: Validate docs build (preview)
         if: inputs.tag_action == 'preview'
         env:
           DOCS_VERSION: ${{ steps.docs_version.outputs.version }}
-        run: uv run --frozen mike deploy --update-aliases "$DOCS_VERSION" latest
+        run: uv run --frozen --no-build mike deploy --update-aliases "$DOCS_VERSION" latest

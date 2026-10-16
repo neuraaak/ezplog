@@ -24,7 +24,6 @@ from __future__ import annotations
 # ///////////////////////////////////////////////////////////////
 # Standard library imports
 import json
-import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -82,11 +81,12 @@ class TestInitialization:
     def test_should_override_defaults_with_env_values_when_env_vars_are_set(
         self,
         temp_config_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
         clean_env: None,  # noqa: ARG002
     ) -> None:
         """Test that initialization loads from environment variables."""
-        os.environ["EZPL_LOG_LEVEL"] = "ERROR"
-        os.environ["EZPL_PRINTER_LEVEL"] = "DEBUG"
+        monkeypatch.setenv("EZPL_LOG_LEVEL", "ERROR")
+        monkeypatch.setenv("EZPL_PRINTER_LEVEL", "DEBUG")
 
         config = ConfigurationManager(config_file=temp_config_file)
         # Environment should override defaults
@@ -322,6 +322,7 @@ class TestPriorityOrder:
     def test_should_prioritize_env_vars_over_file_config_when_both_are_set(
         self,
         temp_config_file: Path,
+        monkeypatch: pytest.MonkeyPatch,
         clean_env: None,  # noqa: ARG002
     ) -> None:
         """Test that environment variables override config file."""
@@ -331,7 +332,7 @@ class TestPriorityOrder:
         temp_config_file.write_text(json.dumps(config_data), encoding="utf-8")
 
         # Set environment variable
-        os.environ["EZPL_LOG_LEVEL"] = "ERROR"
+        monkeypatch.setenv("EZPL_LOG_LEVEL", "ERROR")
 
         config = ConfigurationManager(config_file=temp_config_file)
         # Environment should override file

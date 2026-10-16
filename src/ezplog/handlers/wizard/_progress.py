@@ -37,6 +37,14 @@ from rich.progress import (
 )
 
 # ///////////////////////////////////////////////////////////////
+# GLOBALS
+# ///////////////////////////////////////////////////////////////
+
+_DEFAULT_DESCRIPTION = "Working..."
+_DESCRIPTION_COLUMN = "[progress.description]{task.description}"
+_BLUE_DESCRIPTION_COLUMN = "[bold blue]{task.description}"
+
+# ///////////////////////////////////////////////////////////////
 # CLASSES
 # ///////////////////////////////////////////////////////////////
 
@@ -61,7 +69,7 @@ class ProgressMixin:
     @contextmanager
     def progress(
         self,
-        description: str = "Working...",
+        description: str = _DEFAULT_DESCRIPTION,
         total: int | None = None,
         transient: bool = False,
     ) -> Generator[tuple[Progress, TaskID]]:
@@ -84,7 +92,7 @@ class ProgressMixin:
         progress = Progress(
             TextColumn(self._progress_prefix),
             SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+            TextColumn(_DESCRIPTION_COLUMN),
             BarColumn(),
             TaskProgressColumn(),
             console=self._console,
@@ -97,7 +105,7 @@ class ProgressMixin:
 
     @contextmanager
     def spinner(
-        self, description: str = "Working..."
+        self, description: str = _DEFAULT_DESCRIPTION
     ) -> Generator[tuple[Progress, TaskID]]:
         """
         Create a simple spinner with description.
@@ -116,7 +124,7 @@ class ProgressMixin:
         progress = Progress(
             TextColumn(self._progress_prefix),
             SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+            TextColumn(_DESCRIPTION_COLUMN),
             console=self._console,
         )
 
@@ -126,7 +134,7 @@ class ProgressMixin:
 
     @contextmanager
     def spinner_with_status(
-        self, description: str = "Working..."
+        self, description: str = _DEFAULT_DESCRIPTION
     ) -> Generator[tuple[Progress, TaskID]]:
         """
         Create a spinner that can update status messages.
@@ -144,7 +152,7 @@ class ProgressMixin:
         progress = Progress(
             TextColumn(self._progress_prefix),
             SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+            TextColumn(_DESCRIPTION_COLUMN),
             TextColumn("[dim]{task.fields[status]}"),
             console=self._console,
         )
@@ -172,7 +180,7 @@ class ProgressMixin:
         """
         progress = Progress(
             TextColumn(self._progress_prefix),
-            TextColumn("[progress.description]{task.description}"),
+            TextColumn(_DESCRIPTION_COLUMN),
             BarColumn(),
             TaskProgressColumn(),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
@@ -206,7 +214,7 @@ class ProgressMixin:
         """
         progress = Progress(
             TextColumn(self._progress_prefix),
-            TextColumn("[bold blue]{task.description}"),
+            TextColumn(_BLUE_DESCRIPTION_COLUMN),
             BarColumn(),
             TaskProgressColumn(),
             DownloadColumn(),
@@ -219,7 +227,6 @@ class ProgressMixin:
             task = progress.add_task(description, total=total_size, filename=filename)
             yield progress, task
 
-    @contextmanager
     def dependency_progress(
         self, dependencies: list[str], description: str = "Installing dependencies..."
     ) -> Generator[tuple[Progress, TaskID, str]]:
@@ -235,7 +242,7 @@ class ProgressMixin:
 
         Example:
             >>> deps = ["package1", "package2", "package3"]
-            >>> with printer.wizard.dependency_progress(deps) as (progress, task, dep):
+            >>> for progress, task, dep in printer.wizard.dependency_progress(deps):
             ...     # Install dependency
             ...     progress.advance(task)
         """
@@ -273,7 +280,6 @@ class ProgressMixin:
                 progress.advance(task)
                 time.sleep(0.1)
 
-    @contextmanager
     def package_install_progress(
         self,
         packages: list[tuple[str, str]],
@@ -291,7 +297,7 @@ class ProgressMixin:
 
         Example:
             >>> packages = [("requests", "2.31.0"), ("click", "8.1.0")]
-            >>> with printer.wizard.package_install_progress(packages) as (progress, task, pkg, ver):
+            >>> for progress, task, pkg, ver in printer.wizard.package_install_progress(packages):
             ...     # Install package
             ...     progress.advance(task)
         """
@@ -363,7 +369,7 @@ class ProgressMixin:
         columns: list[ProgressColumn] = [
             TextColumn(self._progress_prefix),
             SpinnerColumn(),
-            TextColumn("[bold blue]{task.description}"),
+            TextColumn(_BLUE_DESCRIPTION_COLUMN),
         ]
 
         if show_step_numbers:
@@ -435,7 +441,6 @@ class ProgressMixin:
             task = progress.add_task(description, total=len(files), current_file="")
             yield progress, task, files
 
-    @contextmanager
     def installation_progress(
         self,
         steps: list[tuple[str, str]],
@@ -453,7 +458,7 @@ class ProgressMixin:
 
         Example:
             >>> steps = [("Init", "Initializing..."), ("Install", "Installing...")]
-            >>> with printer.wizard.installation_progress(steps) as (progress, task, name, desc):
+            >>> for progress, task, name, desc in printer.wizard.installation_progress(steps):
             ...     # Process step
             ...     progress.advance(task)
         """
@@ -489,7 +494,6 @@ class ProgressMixin:
                 progress.advance(task)
                 time.sleep(0.1)
 
-    @contextmanager
     def build_progress(
         self, phases: list[tuple[str, int]], description: str = "Building project..."
     ) -> Generator[tuple[Progress, TaskID, str, int]]:
@@ -505,7 +509,7 @@ class ProgressMixin:
 
         Example:
             >>> phases = [("Compile", 40), ("Test", 30), ("Package", 30)]
-            >>> with printer.wizard.build_progress(phases) as (progress, task, phase, weight):
+            >>> for progress, task, phase, weight in printer.wizard.build_progress(phases):
             ...     # Process phase
             ...     progress.update(task, advance=weight)
         """
@@ -531,7 +535,6 @@ class ProgressMixin:
                 current_progress += weight
                 progress.update(task, completed=current_progress)
 
-    @contextmanager
     def deployment_progress(
         self, stages: list[str], description: str = "Deploying..."
     ) -> Generator[tuple[Progress, TaskID, str]]:
@@ -547,7 +550,7 @@ class ProgressMixin:
 
         Example:
             >>> stages = ["Build", "Test", "Deploy"]
-            >>> with printer.wizard.deployment_progress(stages) as (progress, task, stage):
+            >>> for progress, task, stage in printer.wizard.deployment_progress(stages):
             ...     # Process stage
             ...     progress.advance(task)
         """
@@ -618,7 +621,7 @@ class ProgressMixin:
         columns: list[ProgressColumn] = [
             TextColumn(self._progress_prefix),
             SpinnerColumn(),
-            TextColumn("[bold blue]{task.description}"),
+            TextColumn(_BLUE_DESCRIPTION_COLUMN),
             BarColumn(),
             TaskProgressColumn(),
             TextColumn("[dim]{task.fields[details]}"),

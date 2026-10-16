@@ -32,6 +32,12 @@ from ..utils._log_parser import LogParser
 from ..utils._log_stats import LogStatistics
 
 # ///////////////////////////////////////////////////////////////
+# GLOBALS
+# ///////////////////////////////////////////////////////////////
+
+_HEADER_STYLE = "bold blue"
+
+# ///////////////////////////////////////////////////////////////
 # HELPER FUNCTIONS
 # ///////////////////////////////////////////////////////////////
 
@@ -198,7 +204,7 @@ def view_command(
 
     except click.ClickException:
         raise
-    except (OSError, ValueError, json.JSONDecodeError) as e:
+    except (OSError, ValueError) as e:
         raise click.ClickException(str(e)) from e
 
 
@@ -263,7 +269,7 @@ def search_command(
 
     except click.ClickException:
         raise
-    except (OSError, ValueError, json.JSONDecodeError) as e:
+    except (OSError, ValueError) as e:
         raise click.ClickException(str(e)) from e
 
 
@@ -300,7 +306,7 @@ def stats_command(file: Path | None, format: str) -> None:
             # File info
             file_info = all_stats["file_info"]
             info_table = Table(
-                title="File Information", show_header=True, header_style="bold blue"
+                title="File Information", show_header=True, header_style=_HEADER_STYLE
             )
             info_table.add_column("Property", style="cyan")
             info_table.add_column("Value", style="white")
@@ -338,7 +344,7 @@ def stats_command(file: Path | None, format: str) -> None:
                 level_table = Table(
                     title="Level Distribution",
                     show_header=True,
-                    header_style="bold blue",
+                    header_style=_HEADER_STYLE,
                 )
                 level_table.add_column("Level", style="cyan")
                 level_table.add_column("Count", style="green")
@@ -353,7 +359,7 @@ def stats_command(file: Path | None, format: str) -> None:
 
     except click.ClickException:
         raise
-    except (OSError, ValueError, json.JSONDecodeError) as e:
+    except (OSError, ValueError) as e:
         raise click.ClickException(str(e)) from e
 
 
@@ -398,7 +404,7 @@ def tail_command(file: Path | None, lines: int, follow: bool) -> None:
 
     except click.ClickException:
         raise
-    except (OSError, ValueError, json.JSONDecodeError) as e:
+    except (OSError, ValueError) as e:
         raise click.ClickException(str(e)) from e
 
 
@@ -433,7 +439,9 @@ def list_command(dir: Path | None) -> None:
 
         # Display as table
         table = Table(
-            title=f"Log Files in {log_dir}", show_header=True, header_style="bold blue"
+            title=f"Log Files in {log_dir}",
+            show_header=True,
+            header_style=_HEADER_STYLE,
         )
         table.add_column("File", style="cyan")
         table.add_column("Size", style="green")
@@ -456,7 +464,7 @@ def list_command(dir: Path | None) -> None:
 
     except click.ClickException:
         raise
-    except (OSError, ValueError, json.JSONDecodeError) as e:
+    except (OSError, ValueError) as e:
         raise click.ClickException(str(e)) from e
 
 
@@ -566,7 +574,7 @@ def clean_command(
 
     except click.ClickException:
         raise
-    except (OSError, ValueError, json.JSONDecodeError) as e:
+    except (OSError, ValueError) as e:
         raise click.ClickException(str(e)) from e
 
 
@@ -644,5 +652,5 @@ def export_command(file: Path | None, format: str, output: Path | None) -> None:
 
     except click.ClickException:
         raise
-    except (OSError, ValueError, json.JSONDecodeError) as e:
+    except (OSError, ValueError) as e:
         raise click.ClickException(str(e)) from e

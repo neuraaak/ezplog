@@ -55,7 +55,7 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          VERSION=$(uv run --frozen poe -q read-version)
+          VERSION=$(uv run --frozen --no-build poe -q read-version)
           if [ -z "$VERSION" ]; then
             echo "::error::No version found in pyproject.toml"
             exit 1

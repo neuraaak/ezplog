@@ -27,4 +27,4 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           enable-cache: true
-      - run: uv sync --frozen --all-groups
+      - run: uv sync --frozen --no-build --all-groups

@@ -64,7 +64,7 @@ jobs:
           python-version: "3.13"
           enable-cache: true
 
-      - run: uv sync --frozen --group dev
+      - run: uv sync --frozen --no-build --group dev
 
       # The caller's input must agree with pyproject.toml, or the artifact would
       # be published under a number that is not the one the tag points at.
@@ -73,7 +73,7 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version || '' }}
         run: |
-          FILE_VERSION=$(uv run --frozen poe -q read-version)
+          FILE_VERSION=$(uv run --frozen --no-build poe -q read-version)
           VERSION="${INPUT_VERSION:-$FILE_VERSION}"
           if [ -z "$VERSION" ]; then
             echo "::error::No version found in pyproject.toml"
@@ -90,13 +90,13 @@ jobs:
       # already proved this exact commit, so re-running it would be waste.
       - name: Verify the dispatch gate passes
         if: github.event_name == 'workflow_dispatch'
-        run: uv run --frozen poe check
+        run: uv run --frozen --no-build poe check
 
       - name: Build package
-        run: uv run --frozen poe build
+        run: uv run --frozen --no-build poe build
 
       - name: Verify package metadata
-        run: uv run --frozen twine check dist/*
+        run: uv run --frozen --no-build twine check dist/*
 
       - name: Verify package contents
         run: |
