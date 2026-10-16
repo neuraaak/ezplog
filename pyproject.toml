@@ -144,6 +144,7 @@ docs-build = "mkdocs build --strict"
 docs-coverage = "pytest --cov=src/ezplog --cov-report=html --cov-report=xml -q"
 graph = "python .scripts/dev/generate_architecture_graph.py"
 version = "python .scripts/dev/update_version.py"
+read-version = '''python -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))['project']['version'])"'''
 build = "uv build"
 
 [tool.poe.tasks.imports]

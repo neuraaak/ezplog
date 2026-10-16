@@ -5,10 +5,10 @@ order. The number sorts them in the file tree and documents the cascade.
 
 ```text
 00-install-deps  ← primes the uv cache (keyed on uv.lock)
-01-ci            ← lint ∥ type-check ∥ security → test matrix; the quality gate
+01-ci            ← quality ∥ type-check ∥ security → test matrix; the quality gate
 02-tag-sync      ← orchestrator: CI gate → tag_action → cascade 03 then 04
 03-publish       ← build always; upload to PyPI on `create` only (OIDC)
-04-docs          ← build always; deploy latest / dev / none by tag_action
+04-docs          ← build (strict) on PRs; deploy latest / dev / none by tag_action
 ```
 
 ## The three-state `tag_action`
@@ -45,6 +45,11 @@ than relying on a `push: tags` event that would never fire.
 In a reusable workflow the `github` context is **inherited from the caller**, so
 `github.event_name` inside `03`/`04` is the caller's event (`push`), never
 `workflow_call`. Publish/deploy steps therefore gate on the `tag_action` input.
+
+The one legitimate use of `github.event_name` is the opposite question — "was
+there an upstream gate?". A `workflow_dispatch` of `03` runs without `02`'s CI
+gate, so `03` re-runs `poe check` under `event_name == 'workflow_dispatch'`;
+on the cascade path that condition never matches and the gate is not repeated.
 
 ## No `secrets: inherit`
 
