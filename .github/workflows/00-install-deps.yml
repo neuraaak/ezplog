@@ -16,7 +16,7 @@ permissions: {}
 
 jobs:
   install:
-    name: Prime uv cache
+    name: Install & cache deps
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -27,4 +27,4 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           enable-cache: true
-      - run: uv sync --frozen --all-groups
+      - run: uv sync --frozen --no-build --all-groups

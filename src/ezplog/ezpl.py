@@ -33,6 +33,10 @@ from .handlers import EzLogger, EzPrinter
 
 _APP_PATH = Path(sys.argv[0]).parent
 
+_CONFIG_LOCKED_WARNING = (
+    "Ezpl configuration is locked. Call Ezpl.unlock_config(token) to unlock."
+)
+
 # ///////////////////////////////////////////////////////////////
 # CLASSES
 # ///////////////////////////////////////////////////////////////
@@ -459,7 +463,7 @@ class Ezpl:
         """
         if not self._can_write_config():
             warnings.warn(
-                "Ezpl configuration is locked. Call Ezpl.unlock_config(token) to unlock.",
+                _CONFIG_LOCKED_WARNING,
                 UserWarning,
                 stacklevel=2,
             )
@@ -481,7 +485,7 @@ class Ezpl:
         """
         if not self._can_write_config():
             warnings.warn(
-                "Ezpl configuration is locked. Call Ezpl.unlock_config(token) to unlock.",
+                _CONFIG_LOCKED_WARNING,
                 UserWarning,
                 stacklevel=2,
             )
@@ -502,7 +506,7 @@ class Ezpl:
         """
         if not self._can_write_config():
             warnings.warn(
-                "Ezpl configuration is locked. Call Ezpl.unlock_config(token) to unlock.",
+                _CONFIG_LOCKED_WARNING,
                 UserWarning,
                 stacklevel=2,
             )
@@ -1111,23 +1115,21 @@ class Ezpl:
 
         # Reapply to handlers with priority logic (skip if manually set)
         if not printer_manually_set:
-            effective_printer = (
-                printer_level
-                if printer_level_explicit
-                else global_log_level
-                if global_log_level_explicit
-                else printer_level
-            )
+            if printer_level_explicit:
+                effective_printer = printer_level
+            elif global_log_level_explicit:
+                effective_printer = global_log_level
+            else:
+                effective_printer = printer_level
             self.set_printer_level(effective_printer)
 
         if not logger_manually_set:
-            effective_logger = (
-                file_logger_level
-                if file_logger_level_explicit
-                else (
-                    global_log_level if global_log_level_explicit else file_logger_level
-                )
-            )
+            if file_logger_level_explicit:
+                effective_logger = file_logger_level
+            elif global_log_level_explicit:
+                effective_logger = global_log_level
+            else:
+                effective_logger = file_logger_level
             self.set_logger_level(effective_logger)
 
         # Reinitialize handlers — new instances have _level_manually_set = False by default

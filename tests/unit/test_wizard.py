@@ -291,44 +291,24 @@ class TestProgressBars:
         # Verify no exception raised
 
     def test_should_not_crash_when_dependency_progress_is_used(self, wizard) -> None:
-        """Test dependency_progress() method."""
+        """Test dependency_progress() yields once per dependency."""
         deps = ["requests", "click", "rich"]
-        # dependency_progress is a context manager that yields multiple times
-        gen = wizard.dependency_progress(deps)
-        # Get the first yield
-        first_yield = gen.__enter__()
-        progress, task, _dep = first_yield
-        progress.advance(task)
-        # Consume all remaining yields to allow the generator to complete
-        try:
-            while True:
-                progress, task, _dep = next(gen.gen)
-                progress.advance(task)
-        except (StopIteration, AttributeError):
-            pass
-        # Exit the context manager
-        gen.__exit__(None, None, None)
-        # Verify no exception raised
+        seen = []
+        for progress, task, dep in wizard.dependency_progress(deps):
+            progress.advance(task)
+            seen.append(dep)
+        assert seen == deps
 
     def test_should_not_crash_when_package_install_progress_is_used(
         self, wizard
     ) -> None:
-        """Test package_install_progress() method."""
+        """Test package_install_progress() yields once per package."""
         packages = [("requests", "2.31.0"), ("click", "8.1.0")]
-        # package_install_progress is a context manager that yields multiple times
-        gen = wizard.package_install_progress(packages)
-        first_yield = gen.__enter__()
-        progress, task, _pkg, _ver = first_yield
-        progress.advance(task)
-        # Consume all remaining yields
-        try:
-            while True:
-                progress, task, _pkg, _ver = next(gen.gen)
-                progress.advance(task)
-        except (StopIteration, AttributeError):
-            pass
-        gen.__exit__(None, None, None)
-        # Verify no exception raised
+        seen = []
+        for progress, task, pkg, ver in wizard.package_install_progress(packages):
+            progress.advance(task)
+            seen.append((pkg, ver))
+        assert seen == packages
 
     def test_should_not_crash_when_step_progress_context_is_used(self, wizard) -> None:
         """Test step_progress() method."""
@@ -349,58 +329,31 @@ class TestProgressBars:
         # Verify no exception raised
 
     def test_should_not_crash_when_installation_progress_is_used(self, wizard) -> None:
-        """Test installation_progress() method."""
+        """Test installation_progress() yields once per step."""
         steps = [("Init", "Initializing"), ("Install", "Installing")]
-        # installation_progress is a context manager that yields multiple times
-        gen = wizard.installation_progress(steps)
-        first_yield = gen.__enter__()
-        progress, task, _name, _desc = first_yield
-        progress.advance(task)
-        # Consume all remaining yields
-        try:
-            while True:
-                progress, task, _name, _desc = next(gen.gen)
-                progress.advance(task)
-        except (StopIteration, AttributeError):
-            pass
-        gen.__exit__(None, None, None)
-        # Verify no exception raised
+        seen = []
+        for progress, task, name, desc in wizard.installation_progress(steps):
+            progress.advance(task)
+            seen.append((name, desc))
+        assert seen == steps
 
     def test_should_not_crash_when_build_progress_is_used(self, wizard) -> None:
-        """Test build_progress() method."""
+        """Test build_progress() yields once per weighted phase."""
         phases = [("Compile", 50), ("Test", 30), ("Package", 20)]
-        # build_progress is a context manager that yields multiple times
-        gen = wizard.build_progress(phases)
-        first_yield = gen.__enter__()
-        progress, task, _phase, weight = first_yield
-        progress.update(task, completed=progress.tasks[task].completed + weight)
-        # Consume all remaining yields
-        try:
-            while True:
-                progress, task, _phase, weight = next(gen.gen)
-                progress.update(task, completed=progress.tasks[task].completed + weight)
-        except (StopIteration, AttributeError):
-            pass
-        gen.__exit__(None, None, None)
-        # Verify no exception raised
+        seen = []
+        for progress, task, phase, weight in wizard.build_progress(phases):
+            progress.update(task, completed=progress.tasks[task].completed + weight)
+            seen.append((phase, weight))
+        assert seen == phases
 
     def test_should_not_crash_when_deployment_progress_is_used(self, wizard) -> None:
-        """Test deployment_progress() method."""
+        """Test deployment_progress() yields once per stage."""
         stages = ["Prepare", "Deploy", "Verify"]
-        # deployment_progress is a context manager that yields multiple times
-        gen = wizard.deployment_progress(stages)
-        first_yield = gen.__enter__()
-        progress, task, _stage = first_yield
-        progress.advance(task)
-        # Consume all remaining yields
-        try:
-            while True:
-                progress, task, _stage = next(gen.gen)
-                progress.advance(task)
-        except (StopIteration, AttributeError):
-            pass
-        gen.__exit__(None, None, None)
-        # Verify no exception raised
+        seen = []
+        for progress, task, stage in wizard.deployment_progress(stages):
+            progress.advance(task)
+            seen.append(stage)
+        assert seen == stages
 
     def test_should_not_crash_when_layered_progress_context_is_used(
         self, wizard

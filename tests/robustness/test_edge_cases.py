@@ -231,6 +231,8 @@ class TestExcessiveIndentation:
         # Try deeply nested context managers
         for _ in range(20):
             with ezpl.manage_indent():
+                # Entering and leaving is the behaviour under test; the body
+                # is deliberately empty.
                 pass
 
         # Should be limited

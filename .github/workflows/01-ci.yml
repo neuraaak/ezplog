@@ -1,19 +1,17 @@
 name: 01 · CI
 
-# Quality gate: lint/format and type-check/import-contracts run first and block
-# the test matrix. Runs on PRs, and as the release gate via workflow_call from
-# 02-tag-sync (no bare `push` trigger → one CI run per change, no double runs).
+# Quality gate: quality/type-check run first and block the test matrix; security
+# runs in parallel and deliberately gates nothing (it reads an external advisory
+# feed, so it can turn red without the code changing). Runs on PRs, and as the
+# release gate via workflow_call from 02-tag-sync (no bare `push` trigger → one
+# CI run per change, no double runs).
+#
+# No `paths:` filter: the fleet pipeline reads the same in every repo, and a
+# filtered trigger would hide a break the moment a check grows past src/tests.
 
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/00-install-deps.yml"
-      - ".github/workflows/01-ci.yml"
   workflow_call:
   workflow_dispatch:
 
@@ -25,11 +23,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Four consumers (quality, type-check, security, test): all four install,
+  # so the primer is above the ~3-consumer heuristic on its own merits.
   install-deps:
+    name: Install & cache deps
     uses: ./.github/workflows/00-install-deps.yml
 
-  lint:
-    name: Lint & Format Check
+  quality:
+    name: Lint & format
     needs: [install-deps]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -39,13 +40,14 @@ jobs:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
+          python-version: "3.13"
           enable-cache: true
-      - run: uv sync --frozen --group dev
-      - run: uv run --frozen poe lint
-      - run: uv run --frozen poe format-check
+      - run: uv sync --frozen --no-build --group dev
+      - run: uv run --frozen --no-build poe lint
+      - run: uv run --frozen --no-build poe format-check
 
   type-check:
-    name: Type Check & Import Contracts
+    name: Type check & contracts
     needs: [install-deps]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -55,15 +57,16 @@ jobs:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
+          python-version: "3.13"
           enable-cache: true
-      - run: uv sync --frozen --group dev
-      - run: uv run --frozen poe typecheck
+      - run: uv sync --frozen --no-build --group dev
+      - run: uv run --frozen --no-build poe typecheck
       # The poe task carries PYTHONPATH=src itself (import-linter 2.x needs
       # the package importable).
-      - run: uv run --frozen poe imports
+      - run: uv run --frozen --no-build poe imports
 
   security:
-    name: Security (bandit + pip-audit)
+    name: Security scan
     needs: [install-deps]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -73,13 +76,17 @@ jobs:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
+          python-version: "3.13"
           enable-cache: true
-      - run: uv sync --frozen --group dev
-      - run: uv run --frozen poe security
+      - run: uv sync --frozen --no-build --group dev
+      # `poe security` chains bandit (SAST of the package's own code) and
+      # pip-audit (CVEs in the locked dependencies). No advisory is ignored
+      # here — if one ever has to be, document impact and exit condition.
+      - run: uv run --frozen --no-build poe security
 
   test:
     name: Tests (Python ${{ matrix.python }})
-    needs: [lint, type-check, security]
+    needs: [quality, type-check]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
@@ -94,10 +101,10 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - run: uv sync --frozen --group dev
+      - run: uv sync --frozen --no-build --group dev
       # `poe test-ci` carries the coverage threshold, which is deliberately
       # not in addopts: a partial local run must not exit with code 1.
-      - run: uv run --frozen poe test-ci
+      - run: uv run --frozen --no-build poe test-ci
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

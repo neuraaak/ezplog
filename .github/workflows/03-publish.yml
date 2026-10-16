@@ -1,4 +1,4 @@
-name: 03 · Publish to PyPI
+name: 03 · Publish
 
 # Build + package on every mode; upload to PyPI only when `tag_action` is
 # `create` (a real release). Gating is keyed on the `tag_action` INPUT, never on
@@ -7,6 +7,14 @@ name: 03 · Publish to PyPI
 # and an `event_name == 'workflow_dispatch'` escape hatch would let a manual run
 # from an arbitrary ref fire the irreversible PyPI upload. A manual dispatch
 # therefore defaults to `preview` and must opt in explicitly.
+#
+# A dispatch has no upstream CI gate (02-tag-sync runs 01-ci before calling us),
+# so the gate-equivalent step runs under `event_name == 'workflow_dispatch'` —
+# the one place that signal is the right one, since a workflow_call inherits the
+# caller's event and never matches.
+#
+# The FILENAME is what PyPI's Trusted Publisher matches: renaming this file
+# breaks OIDC until the publisher is re-registered.
 
 on:
   workflow_dispatch:
@@ -32,7 +40,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: publish-${{ github.ref }}
+  group: publish
   cancel-in-progress: false
 
 env:
@@ -40,8 +48,9 @@ env:
 
 jobs:
   validate:
-    name: Validate & Build
+    name: Validate & build
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
     outputs:
@@ -50,43 +59,50 @@ jobs:
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
 
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - run: uv sync --frozen --no-build --group dev
+
+      # The caller's input must agree with pyproject.toml, or the artifact would
+      # be published under a number that is not the one the tag points at.
       - name: Resolve version
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version || '' }}
         run: |
-          VERSION="$INPUT_VERSION"
-          if [ -z "$VERSION" ]; then
-            VERSION=$(grep -E '^version\s*=\s*"' pyproject.toml | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/')
-          fi
+          FILE_VERSION=$(uv run --frozen --no-build poe -q read-version)
+          VERSION="${INPUT_VERSION:-$FILE_VERSION}"
           if [ -z "$VERSION" ]; then
             echo "::error::No version found in pyproject.toml"
+            exit 1
+          fi
+          if [ "$VERSION" != "$FILE_VERSION" ]; then
+            echo "::error::Version mismatch: input $VERSION vs pyproject.toml $FILE_VERSION"
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
 
-      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-        with:
-          enable-cache: true
-
-      - run: uv sync --frozen --group dev
-
-      - name: Enforce import contracts
-        run: uv run --frozen poe imports
+      # Gate-equivalent for a manual dispatch only: on the cascade path 01-ci
+      # already proved this exact commit, so re-running it would be waste.
+      - name: Verify the dispatch gate passes
+        if: github.event_name == 'workflow_dispatch'
+        run: uv run --frozen --no-build poe check
 
       - name: Build package
-        run: uv run --frozen poe build
+        run: uv run --frozen --no-build poe build
 
-      - name: Check package
-        run: uv run --frozen twine check dist/*
+      - name: Verify package metadata
+        run: uv run --frozen --no-build twine check dist/*
 
-      - name: Verify wheel installation
+      - name: Verify package contents
         run: |
           python -m zipfile -t dist/*.whl
           python - <<'PY'
           import glob
-          import sys
           import zipfile
 
           wheels = glob.glob("dist/*.whl")
@@ -109,10 +125,11 @@ jobs:
           retention-days: 1
 
   publish:
-    name: Publish to PyPI (OIDC)
+    name: Publish (PyPI)
     needs: validate
     if: inputs.tag_action == 'create'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write
@@ -126,13 +143,20 @@ jobs:
           name: dist
           path: dist/
 
-      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+      - name: Publish (OIDC)
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
           verbose: true
+          # Replay-safe: 02-tag-sync creates the tag before this job runs, so a
+          # release whose upload failed is recovered by dispatching 03 again.
+          # Without this, the replay would 409 on the already-present version.
+          skip-existing: true
           # Attestations disabled: when called as a reusable workflow from
           # 02-tag-sync.yml, the OIDC token's Build Config URI reflects the
           # caller rather than this workflow, causing PyPI Trusted Publisher
           # verification to fail.
+          # Exit condition: re-enable once PyPI matches the called workflow's
+          # job_workflow_ref rather than the caller's.
           attestations: false
 
       - name: Summary

@@ -461,7 +461,7 @@ class TestErrorHandling:
         with patch("builtins.open", side_effect=OSError("Write error")):
             try:
                 logger.info("Test message")
-            except (OSError, Exception):
+            except Exception:
                 # Expected behavior - should handle gracefully
                 pass
 

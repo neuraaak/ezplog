@@ -207,18 +207,9 @@ with wizard.file_download_progress("large_file.zip", 1024000) as (progress, task
 # Dependency progress
 print("\nDependency progress:")
 dependencies = ["requests", "click", "rich", "loguru"]
-gen = wizard.dependency_progress(dependencies)
-first_yield = gen.__enter__()
-progress, task, dep = first_yield
-progress.advance(task)
-try:
-    while True:
-        progress, task, dep = next(gen.gen)
-        progress.advance(task)
-        time.sleep(0.1)
-except (StopIteration, AttributeError):
-    pass
-gen.__exit__(None, None, None)
+for progress, task, _dep in wizard.dependency_progress(dependencies):
+    progress.advance(task)
+    time.sleep(0.1)
 
 # Step progress
 print("\nStep progress:")

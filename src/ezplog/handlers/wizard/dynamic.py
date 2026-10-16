@@ -586,7 +586,7 @@ class DynamicLayeredProgress:
             # Create failure animation sequence: flash red 3 times
             for flash in range(3):
                 # Apply flash effect to all active layers
-                for task_id in list(self._active_layers):
+                for task_id in self._active_layers:
                     task = self._get_task(task_id)
                     if task is not None:
                         clean_description = self._clean_description(
@@ -612,7 +612,7 @@ class DynamicLayeredProgress:
                 time.sleep(0.15)
 
             # Final state: settle on clean error display
-            for task_id in list(self._active_layers):
+            for task_id in self._active_layers:
                 task = self._get_task(task_id)
                 if task is not None:
                     clean_description = self._clean_description(str(task.description))
@@ -686,7 +686,7 @@ class DynamicLayeredProgress:
             time.sleep(0.5)
         elif not success:
             # ERROR/WARNING CASE: Freeze current state
-            for task_id in list(self._active_layers):
+            for task_id in self._active_layers:
                 task = self._get_task(task_id)
                 if task is not None:
                     clean_description = self._clean_description(str(task.description))
