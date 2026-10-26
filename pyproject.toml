@@ -17,7 +17,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ezplog"
-version = "2.3.3"
+version = "2.3.4"
 description = "Modern Python logging framework with Rich console output and loguru file logging, featuring advanced display capabilities, configuration management, and a simple typed API."
 readme = "README.md"
 requires-python = ">=3.13"
